@@ -3,6 +3,7 @@ name: Deploy Frontend to S3 + Invalidate CloudFront
 on:
   push:
     branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy:
