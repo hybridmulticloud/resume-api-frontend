@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Kerem Kirci | Hybrid Cloud CV</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Kerem Kirci</h1>
+      <p><a href="https://linkedin.com/in/kerem-kirci" target="_blank">linkedin.com/in/kerem-kirci</a></p>
+    </header>
+    <section>
+      <h2>Professional Summary</h2>
+      <p>With 3 years of proven success delivering technical consultancy and hybrid cloud solutions in the UK, and over 15 years of progressive IT leadership in Turkey, I offer an international track record across enterprise architecture, IT operations, and digital transformation.</p>
+      <p>My core strength lies in designing and delivering hybrid infrastructure solutions, integrating on-premises environments with public cloud platforms like AWS, while leveraging industry-leading technologies from HPE, Cisco, and Nokia to build secure, scalable, and cost-optimized architectures.</p>
+      <p>I am currently seeking Technical Consultant or Solution Architect roles where I can contribute to designing next-generation network and hybrid cloud infrastructures that drive resilience, agility, and business value.</p>
+    </section>
+    <section>
+      <h2>Core Competencies</h2>
+      <ul class="grid">
+        <li>Hybrid Cloud Architecture: AWS, Azure Local, HPE GreenLake</li>
+        <li>Compute Platforms: HPE Proliant, HPE Synergy, Cray Systems, Virtualization</li>
+        <li>Enterprise Storage: HPE Alletra MP, HPE Simplivity, dHCI</li>
+        <li>Network Infrastructure: Cisco, Meraki, Aruba, Nokia, Huawei, MPLS</li>
+        <li>Architecture & Design: HLD, LLD, BOMs, Migration Planning</li>
+        <li>Pre-Sales Engagement: RFP/RFI, PoCs, Technical Workshops</li>
+        <li>Technical Leadership: Project Oversight, QA, Partner Enablement</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Certifications</h2>
+      <ul>
+        <li>AWS Certified Solutions Architect – Associate (2025)</li>
+        <li>HPE ASE – Edge-to-Cloud Architect (2024)</li>
+        <li>HPE GreenLake Solution Certified (2024)</li>
+        <li>Cisco Enterprise Core (2022)</li>
+        <li>Zyxel ZCNT & ZCNE (2018–2019)</li>
+        <li>ONF Certified SDN Associate (2015)</li>
+        <li>CCIE RS Written (2010)</li>
+      </ul>
+    </section>
+    <section>
+      <h2>Professional Experience</h2>
+      <article>
+        <h3>Technical Presales Consultant – TD Synnex UK&I <span>2022–Present</span></h3>
+        <ul>
+          <li>Delivered tailored HPE enterprise infrastructure solutions for UK partners and customers.</li>
+          <li>Managed 25% of inbound partner requests, boosting team efficiency by 15%.</li>
+          <li>Recognized for high-quality delivery and top-tier partner support.</li>
+        </ul>
+      </article>
+      <article>
+        <h3>Technical Presales Consultant – TD Synnex Turkey <span>2021–2022</span></h3>
+        <ul>
+          <li>Designed Cisco LAN/WAN/data center solutions: Catalyst, Meraki, Nexus, UCS, HyperFlex.</li>
+          <li>Led BoM creation and stakeholder engagement across diverse infrastructure projects.</li>
+        </ul>
+      </article>
+      <article>
+        <h3>Presales Engineer – Zyxel <span>2017–2021</span></h3>
+        <ul>
+          <li>Designed end-to-end wired/wireless networks for enterprise/public/SMB.</li>
+          <li>Delivered trainings, webinars, and Nebula SDN consulting to channel partners.</li>
+        </ul>
+      </article>
+      <article>
+        <h3>Network Architect – Avea / Turk Telekom <span>2008–2016</span></h3>
+        <ul>
+          <li>Led IP/MPLS transformation projects including LTE integration and $10M router swaps.</li>
+          <li>Designed high-level and low-level network architecture documents.</li>
+        </ul>
+      </article>
+    </section>
+    <section>
+      <h2>Education</h2>
+      <ul>
+        <li><strong>Koc University</strong> – Executive MBA, GPA: 3.77 (2014–2015)</li>
+        <li><strong>Istanbul Technical University</strong> – BSc, Electronics & Comms Eng. (1999–2003)</li>
+      </ul>
+    </section>
+    <footer>
+      <p>HybridMulti.Cloud</p>
+      <p>This page has been viewed <span id="visitor-count">...</span> times.</p>
+    </footer>
+  </div>
+
+  <script>
+    const apiUrl = "https://3d5awak36i.execute-api.us-east-1.amazonaws.com/UpdateVisitorCount";
+
+    async function updateVisitorCount() {
+      try {
+        const response = await fetch(apiUrl, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json"
+          },
+          body: JSON.stringify({})
+        });
+        const data = await response.json();
+        document.getElementById("visitor-count").innerText = data.visits;
+      } catch (error) {
+        console.error("Visitor counter failed:", error);
+      }
+    }
+
+    window.onload = updateVisitorCount;
+  </script>
+</body>
+</html>
