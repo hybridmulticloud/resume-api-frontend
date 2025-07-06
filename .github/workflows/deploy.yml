@@ -25,7 +25,6 @@ jobs:
           aws s3 sync . s3://hybridmulti.cloud \
             --delete \
             --exclude ".git/*" \
-            --acl public-read \
             --cache-control "no-store"
 
       - name: Invalidate CloudFront cache
