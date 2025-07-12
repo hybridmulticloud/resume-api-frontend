@@ -1,4 +1,4 @@
-# 🧑‍💼 Kerem Kirci – Hybrid Cloud Resume Website  
+# 🧑‍💼 KEREM KIRCI – Hybrid Cloud Resume Website  
 [🌐 hybridmulti.cloud](https://hybridmulti.cloud)  
 A production-grade, serverless resume site deployed with Terraform, GitHub Actions, and AWS Cloud services.
 
