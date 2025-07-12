@@ -52,7 +52,7 @@ resume-api-frontend/
 - **Terraform** – Infrastructure as Code  
 - **GitHub Actions** – Automated deployment pipeline  
 - **CloudWatch** – Monitoring, alarms, logging  
-- *(Planned)*: Multi-region failover, Route 53, public uptime dashboard
+- *(Planned)*: Multi-region failover, Route 53
 
 ---
 
@@ -62,7 +62,6 @@ resume-api-frontend/
 - ✅ CloudWatch Alarms for function errors and latency  
 - ✅ DynamoDB metrics for throttling & performance  
 - ✅ CloudWatch Synthetics uptime checker for `hybridmulti.cloud`  
-- *(Optional)* Public status via UptimeRobot or BetterUptime
 
 ---
 
@@ -71,7 +70,7 @@ resume-api-frontend/
 On every `main` branch push:
 1. Terraform is initialized and applied (`infra/`)
 2. `public/` assets are synced to the S3 bucket
-3. (Optional) CloudFront cache invalidated
+3. CloudFront cache invalidated
 
 > Fully automated via `deploy.yml` in GitHub Actions.
 
@@ -89,9 +88,7 @@ On every `main` branch push:
 ## 🧪 In Progress / TODO
 
 - [ ] Multi-region DynamoDB (Global Tables)  
-- [ ] Route 53 DNS failover for high availability  
-- [ ] HTML/CSS minification in CI pipeline  
-- [ ] Public status page integration (UptimeRobot)
+- [ ] Route 53 DNS failover for high availability 
 
 ---
 
