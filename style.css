@@ -4,7 +4,7 @@ body {
   margin: 0;
   padding: 0;
   line-height: 1.6;
-  background-color: #fdfdfd;
+  background-color: #f0f8ff; /* Light blue background */
   color: #333;
 }
 h1, h2, h3, h4 {
@@ -14,20 +14,24 @@ h1, h2, h3, h4 {
 h1 {
   font-size: 2em;
   margin-bottom: 0.2em;
+  color: #006699;
 }
 h2 {
   font-size: 1.5em;
-  border-bottom: 2px solid #444;
+  border-bottom: 2px solid #006699;
   padding-bottom: 0.2em;
+  color: #006699;
 }
 h3 {
   font-size: 1.2em;
   margin-top: 1.5em;
+  color: #004466;
 }
 h4 {
   font-size: 1.1em;
   font-style: italic;
   margin-top: 1em;
+  color: #005577;
 }
 p, ul, li {
   font-size: 0.95em;
@@ -44,25 +48,31 @@ nav {
   position: fixed;
   top: 0;
   width: 100%;
-  background-color: #333;
+  background-color: #007acc; /* Lighter blue nav */
   opacity: 0.95;
   padding: 0.5em 0;
   z-index: 1000;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
 }
 nav ul {
   list-style: none;
   text-align: center;
   margin: 0;
   padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 1em;
 }
 nav li {
   display: inline;
-  margin: 0 1em;
 }
 nav a {
   color: #fff;
   text-decoration: none;
   font-weight: bold;
+  padding: 0.5em;
+  display: inline-block;
 }
 nav a:hover {
   text-decoration: underline;
@@ -72,10 +82,11 @@ nav a:hover {
 header {
   text-align: center;
   padding: 6em 1em 2em;
-  background: #f0f0f0;
+  background: #e6f2ff; /* Light blue header */
 }
 header h1 {
   font-size: 2.5em;
+  color: #004466;
 }
 header h2 {
   font-size: 1.3em;
@@ -86,6 +97,10 @@ section {
   padding: 2em 1em;
   max-width: 800px;
   margin: 0 auto;
+  background-color: #ffffff;
+  border-radius: 8px;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.05);
+  margin-bottom: 2em;
 }
 #portfolio h3 {
   margin-top: 1em;
@@ -100,13 +115,19 @@ footer {
   padding: 1em;
   font-size: 0.9em;
   color: #666;
+  background-color: #e6f2ff;
+  border-top: 1px solid #ccc;
 }
 
 /* Responsive Design */
 @media (max-width: 600px) {
+  nav ul {
+    flex-direction: column;
+    gap: 0.5em;
+  }
   nav li {
     display: block;
-    margin: 0.5em 0;
+    margin: 0;
   }
   header {
     padding: 4em 1em 1.5em;
@@ -123,4 +144,5 @@ section#portfolio img {
   height: auto;
   margin: 1em auto;
   border: 1px solid #ccc;
+  border-radius: 4px;
 }
