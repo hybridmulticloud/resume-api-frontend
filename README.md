@@ -1,4 +1,4 @@
-Kerem Kirci – Hybrid Cloud Resume Website
+KEREM KIRCI – Hybrid Cloud Resume Website
 🌐 hybridmulti.cloud
 A production-grade, serverless resume site deployed with Terraform, GitHub Actions, and AWS Cloud services.
 
@@ -30,49 +30,34 @@ resume-api-frontend/
 
 ⚙️ Technologies Used
 AWS S3 + CloudFront – Static hosting + CDN
-
 API Gateway + Lambda (Python) – Serverless visitor count API
-
 DynamoDB – NoSQL counter storage
-
 Terraform – Infrastructure as Code
-
 GitHub Actions – Automated deployment pipeline
-
 CloudWatch – Monitoring, alarms, logging
-
 (Planned): Multi-region failover, Route 53, public uptime dashboard
 
 🛡️ Monitoring & Logging
 ✅ CloudWatch Logs for Lambda invocations & errors
-
 ✅ CloudWatch Alarms for function errors and latency
-
 ✅ DynamoDB metrics for throttling & performance
-
 ✅ CloudWatch Synthetics uptime checker for hybridmulti.cloud
+
 
 📦 Deployment Pipeline
 On every main branch push:
-
 Terraform is initialized and applied (infra/)
-
 public/ assets are synced to S3 bucket
-
 Cache invalidation for CloudFront
-
 Fully automated via deploy.yml in GitHub Actions.
+
 
 🔒 Security Notes
 S3 bucket access is locked via CloudFront origin access control
-
 IAM roles follow the least privilege principle
-
 API Gateway is restricted to specific paths
-
 Lambda logs all requests and errors for auditability
 
 🧪 In Progress / TODO
  Multi-region DynamoDB (Global Tables)
-
  Route 53 DNS failover for high availability
