@@ -33,7 +33,6 @@ resume-api-frontend/
 ├── public/                  # 🚀 Static frontend files (for S3)
 │   ├── index.html
 │   ├── style.css
-│   └── favicon.ico          # (optional)
 ├── infra/                   # 🛠️ Terraform infrastructure code
 │   └── main.tf
 ├── .github/                 # 🤖 GitHub Actions CI/CD
