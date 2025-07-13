@@ -25,6 +25,3 @@ Thumbs.db
 # Optional environment config
 .env
 .env.*
-
-# Ignore S3 deploy directory (public files get uploaded, not versioned)
-public/
