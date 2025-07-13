@@ -93,11 +93,10 @@ Everything is automated via `.github/workflows/deploy.yml`.
 
 ---
 
-## 🧪 In Progress / TODO
+## 🧪 Planned Enhancements
 
 - [ ] Add DynamoDB Global Tables (multi-region HA)
 - [ ] Add Route 53 DNS failover
-- [ ] Improve performance score via Lighthouse audit
 
 ---
 
