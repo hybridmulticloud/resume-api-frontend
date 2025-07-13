@@ -2,7 +2,7 @@
 🌐 [https://hybridmulti.cloud](https://hybridmulti.cloud)
 
 A production-grade, serverless resume site deployed with **Terraform**, **GitHub Actions**, and **AWS Cloud services**.  
-Built as part of the Cloud Resume Challenge, this project demonstrates real-world skills in **cloud architecture**, **DevOps automation**, and **modern infrastructure as code**.
+This project is my public-facing **hybrid cloud resume and portfolio site**, built as part of the [Cloud Resume Challenge](https://cloudresumechallenge.dev/). It demonstrates hands-on skills in **cloud infrastructure**, **serverless architecture**, and **DevOps automation** using modern best practices.
 
 ---
 
