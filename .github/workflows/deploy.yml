@@ -1,4 +1,4 @@
-name: Deploy Frontend to S3
+name: Deploy Frontend to S3 (Dynamic API + Secure Bucket)
 
 on:
   push:
@@ -10,10 +10,10 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
+      - name: Checkout source code
         uses: actions/checkout@v3
 
-      - name: Download API URL artifact
+      - name: Download API URL artifact from backend
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: deploy-backend.yml
@@ -21,7 +21,7 @@ jobs:
           repo: hybridmulticloud/resume-api-backend
           github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
-      - name: Download CloudFront ID artifact
+      - name: Download CloudFront ID artifact from backend
         uses: dawidd6/action-download-artifact@v3
         with:
           workflow: deploy-backend.yml
@@ -29,10 +29,10 @@ jobs:
           repo: hybridmulticloud/resume-api-backend
           github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
-      - name: Inject API into HTML
+      - name: Inject API Gateway URL into index.html
         run: sed -i "s|API_PLACEHOLDER|$(cat api_url.txt)|" public/index.html
 
-      - name: Export CloudFront ID
+      - name: Read and export CloudFront ID
         run: echo "CLOUDFRONT_ID=$(cat cloudfront_id.txt)" >> $GITHUB_ENV
 
       - name: Configure AWS credentials
@@ -42,8 +42,14 @@ jobs:
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region: ${{ secrets.AWS_REGION }}
 
-      - name: Upload to S3
-        run: aws s3 sync public/ s3://hybridmulti.cloud --delete
+      - name: Check if S3 bucket exists
+        run: aws s3api head-bucket --bucket ${{ secrets.S3_BUCKET_NAME }}
+
+      - name: Upload frontend files to S3
+        run: |
+          aws s3 sync public/ s3://${{ secrets.S3_BUCKET_NAME }} \
+            --delete \
+            --cache-control "no-store"
 
       - name: Invalidate CloudFront Cache
         run: |
