@@ -2,7 +2,8 @@ name: Deploy Frontend to S3 (Dynamic API + Secure Bucket)
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -14,7 +15,7 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download API URL artifact
-        uses: dawidd6/action-download-artifact@v4
+        uses: actions/download-artifact@v4
         with:
           repository: hybridmulticloud/resume-api-backend
           workflow: 'Deploy Backend Infrastructure'
@@ -23,7 +24,7 @@ jobs:
           path: infra-artifacts
 
       - name: Download CloudFront ID artifact
-        uses: dawidd6/action-download-artifact@v4
+        uses: actions/download-artifact@v4
         with:
           repository: hybridmulticloud/resume-api-backend
           workflow: 'Deploy Backend Infrastructure'
@@ -49,22 +50,16 @@ jobs:
       - name: Verify S3 bucket exists
         run: aws s3api head-bucket --bucket ${{ secrets.S3_BUCKET_NAME }}
 
-      - name: Sync public/ to S3
-        uses: aws-actions/s3-sync@v2
-        with:
-          bucket:     ${{ secrets.S3_BUCKET_NAME }}
-          source-dir: public/
-          delete:     true
-          cache-control: |
-            index.html: max-age=0,no-cache,no-store,must-revalidate
-            *.css:      max-age=86400
-            *.js:       max-age=86400
+      - name: Sync public/ to S3 via AWS CLI
+        run: |
+          aws s3 sync public/ s3://${{ secrets.S3_BUCKET_NAME }} \
+            --delete \
+            --cache-control "index.html=max-age=0,no-cache,no-store,must-revalidate" \
+            --cache-control "*.css=max-age=86400" \
+            --cache-control "*.js=max-age=86400"
 
-      - name: Invalidate CloudFront cache
-        uses: aws-actions/cloudfront-invalidate@v2
-        with:
-          distribution-id:    ${{ env.CLOUDFRONT_DISTRIBUTION_ID }}
-          invalidation-paths: |
-            /index.html
-            /*.css
-            /*.js
+      - name: Invalidate CloudFront cache via AWS CLI
+        run: |
+          aws cloudfront create-invalidation \
+            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --paths /index.html '/*.css' '/*.js'
