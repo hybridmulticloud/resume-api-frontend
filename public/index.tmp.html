@@ -143,14 +143,15 @@
     <p><strong>Location:</strong> Reading, UK</p>
   </section>
 
-  <!-- Footer / Visitor Counter Display -->
+<!-- Footer / Visitor Counter Display -->
   <footer>
     <p>HybridMulti.Cloud</p>
-      <p>This page has been viewed <span id="visitor-count">...</span> times.</p>
-    </footer>
+    <p>This page has been viewed <span id="visitor-count">...</span> times.</p>
+  </footer>
 
   <script>
-    const apiUrl = "https://3d5awak36i.execute-api.us-east-1.amazonaws.com/UpdateVisitorCount";
+    // Injected at build time by envsubst
+    const apiUrl = "${API_URL}";
 
     async function updateVisitorCount() {
       try {
@@ -165,10 +166,11 @@
         document.getElementById("visitor-count").innerText = data.visits;
       } catch (error) {
         console.error("Visitor counter failed:", error);
+        document.getElementById("visitor-count").innerText = "N/A";
       }
     }
 
-    window.onload = updateVisitorCount;
+    window.addEventListener("DOMContentLoaded", updateVisitorCount);
   </script>
 </body>
 </html>
