@@ -2,32 +2,35 @@ name: Deploy Frontend to S3 (Dynamic API + Secure Bucket)
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
-
-concurrency:
-  group: deploy-frontend-${{ github.ref }}
-  cancel-in-progress: true
 
 jobs:
   deploy-frontend:
+    name: Deploy Frontend
     runs-on: ubuntu-latest
-    needs: deploy-backend   # assumes you run backend in the same pipeline
 
     steps:
-      - name: Checkout repository
+      - name: Checkout code
         uses: actions/checkout@v3
 
-      - name: Download backend artifacts
-        uses: actions/download-artifact@v4
+      - name: Download API URL artifact
+        uses: dawidd6/action-download-artifact@v4
         with:
+          workflow: deploy-backend.yml
           name: api-url
+          repo: hybridmulticloud/resume-api-backend
+          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           path: infra-artifacts
 
       - name: Download CloudFront ID artifact
-        uses: actions/download-artifact@v4
+        uses: dawidd6/action-download-artifact@v4
         with:
+          workflow: deploy-backend.yml
           name: cloudfront-id
+          repo: hybridmulticloud/resume-api-backend
+          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
           path: infra-artifacts
 
       - name: Build index.html from template
@@ -48,7 +51,7 @@ jobs:
       - name: Verify S3 bucket exists
         run: aws s3api head-bucket --bucket ${{ secrets.S3_BUCKET_NAME }}
 
-      - name: Sync public/ to S3
+      - name: Sync public/ folder to S3
         uses: aws-actions/s3-sync@v1
         with:
           bucket:     ${{ secrets.S3_BUCKET_NAME }}
