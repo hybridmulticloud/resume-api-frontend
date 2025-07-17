@@ -19,13 +19,13 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Download backend artifacts
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: api-url
           path: infra-artifacts
 
       - name: Download CloudFront ID artifact
-        uses: actions/download-artifact@v3
+        uses: actions/download-artifact@v4
         with:
           name: cloudfront-id
           path: infra-artifacts
