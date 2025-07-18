@@ -2,7 +2,7 @@ name: Deploy Frontend to S3 (Dynamic API + Secure Bucket)
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
   workflow_dispatch:
 
 jobs:
@@ -20,6 +20,7 @@ jobs:
         run: |
           sudo apt-get update
           sudo apt-get install -y gh
+          gh version
 
       - name: Get latest backend run ID
         id: get_run
@@ -29,8 +30,9 @@ jobs:
             --workflow 'Deploy Backend Infrastructure' \
             --branch main \
             --limit 1 \
-            --json databaseId \
-            --jq '.[0].databaseId')" >> $GITHUB_ENV
+            --json id \
+            --jq '.[0].id')" >> $GITHUB_ENV
+          echo "Using backend run $RUN_ID"
 
       - name: Download API URL artifact
         run: |
@@ -45,6 +47,9 @@ jobs:
             --repo hybridmulticloud/resume-api-backend \
             --name cloudfront-id \
             --dir infra-artifacts
+
+      - name: Debug: list infra-artifacts
+        run: ls -R infra-artifacts
 
       - name: Build index.html from template
         run: |
