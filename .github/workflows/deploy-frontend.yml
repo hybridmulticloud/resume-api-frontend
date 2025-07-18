@@ -15,7 +15,8 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - run: |
+      - name: Install GitHub CLI
+        run: |
           sudo apt-get update
           sudo apt-get install -y gh
 
@@ -30,30 +31,43 @@ jobs:
             --jq '.[0].databaseId')
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
-      - run: gh run download $RUN_ID --repo hybridmulticloud/resume-api-backend --name api-url --dir infra-artifacts
-
-      - run: gh run download $RUN_ID --repo hybridmulticloud/resume-api-backend --name cloudfront-id --dir infra-artifacts
+      - run: |
+          gh run download $RUN_ID \
+            --repo hybridmulticloud/resume-api-backend \
+            --name api-url \
+            --dir infra-artifacts
 
       - run: |
-          echo "API_URL=$(cat infra-artifacts/api_url.txt)" >> $GITHUB_ENV
-          echo "CLOUDFRONT_ID=$(cat infra-artifacts/cloudfront_id.txt)" >> $GITHUB_ENV
+          gh run download $RUN_ID \
+            --repo hybridmulticloud/resume-api-backend \
+            --name cloudfront-id \
+            --dir infra-artifacts
 
-      - run: envsubst < public/index.tmpl.html > public/index.html
+      - name: Export API_URL and CLOUDFRONT_ID
+        run: |
+          echo "API_URL=$(cat infra-artifacts/api_url.txt)" >> $GITHUB_ENV
+          CF_ID=$(grep -Eo '^[A-Za-z0-9]+' infra-artifacts/cloudfront_id.txt | head -n1)
+          echo "CLOUDFRONT_ID=$CF_ID" >> $GITHUB_ENV
+
+      - name: Build index.html
+        run: envsubst < public/index.tmpl.html > public/index.html
 
       - uses: aws-actions/configure-aws-credentials@v2
         with:
+          aws-region:            ${{ secrets.AWS_REGION }}
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-          aws-region:            ${{ secrets.AWS_REGION }}
 
-      - run: |
+      - name: Sync to S3
+        run: |
           aws s3 sync public/ s3://${{ secrets.S3_BUCKET_NAME }} \
             --delete \
             --cache-control "index.html=max-age=0,no-cache,no-store" \
             --cache-control "*.css=max-age=86400" \
             --cache-control "*.js=max-age=86400"
 
-      - run: |
+      - name: Invalidate CloudFront
+        run: |
           aws cloudfront create-invalidation \
-            --distribution-id $CLOUDFRONT_ID \
+            --distribution-id "$CLOUDFRONT_ID" \
             --paths /index.html '/*.css' '/*.js'
