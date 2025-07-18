@@ -21,28 +21,25 @@ jobs:
 
       - id: get_run
         run: |
-          RUN_ID=$(gh run list \
+          echo "RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
             --workflow 'Deploy Backend Infrastructure' \
             --branch main \
             --limit 1 \
-            --json id \
-            --jq '.[0].id')
-          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+            --json databaseId \
+            --jq '.[0].databaseId')" >> $GITHUB_ENV
 
       - run: |
-          gh run download \
+          gh run download $RUN_ID \
             --repo hybridmulticloud/resume-api-backend \
             --name api-url \
-            --dir infra-artifacts \
-            $RUN_ID
+            --dir infra-artifacts
 
       - run: |
-          gh run download \
+          gh run download $RUN_ID \
             --repo hybridmulticloud/resume-api-backend \
             --name cloudfront-id \
-            --dir infra-artifacts \
-            $RUN_ID
+            --dir infra-artifacts
 
       - run: |
           API_URL=$(cat infra-artifacts/api_url.txt)
