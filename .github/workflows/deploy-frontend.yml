@@ -2,35 +2,52 @@ name: Deploy Frontend to S3 (Dynamic API + Secure Bucket)
 
 on:
   push:
-    branches:
-      - main
+    branches: [main]
   workflow_dispatch:
 
 jobs:
   deploy-frontend:
+    name: Deploy Frontend
     runs-on: ubuntu-latest
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
 
+      - name: Install GitHub CLI
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y gh
+
+      - name: Authenticate gh CLI
+        run: echo "${{ secrets.PERSONAL_ACCESS_TOKEN }}" | gh auth login --with-token
+
+      - name: Get latest backend run ID
+        id: get_run
+        run: |
+          echo "RUN_ID=$(gh run list \
+            --repo hybridmulticloud/resume-api-backend \
+            --workflow 'Deploy Backend Infrastructure' \
+            --branch main \
+            --limit 1 \
+            --json databaseId \
+            --jq '.[0].databaseId')" >> $GITHUB_ENV
+
       - name: Download API URL artifact
-        uses: actions/download-artifact@v4
-        with:
-          repository: hybridmulticloud/resume-api-backend
-          workflow: 'Deploy Backend Infrastructure'
-          name: api-url
-          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          path: infra-artifacts
+        run: |
+          gh run download \
+            --repo hybridmulticloud/resume-api-backend \
+            --run-id $RUN_ID \
+            --name api-url \
+            --dir infra-artifacts
 
       - name: Download CloudFront ID artifact
-        uses: actions/download-artifact@v4
-        with:
-          repository: hybridmulticloud/resume-api-backend
-          workflow: 'Deploy Backend Infrastructure'
-          name: cloudfront-id
-          github_token: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-          path: infra-artifacts
+        run: |
+          gh run download \
+            --repo hybridmulticloud/resume-api-backend \
+            --run-id $RUN_ID \
+            --name cloudfront-id \
+            --dir infra-artifacts
 
       - name: Build index.html from template
         run: |
