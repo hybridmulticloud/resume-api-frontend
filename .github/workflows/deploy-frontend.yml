@@ -44,11 +44,6 @@ jobs:
             --name cloudfront-id \
             --dir infra-artifacts
 
-      - name: Debug: list infra-artifacts & public folder
-        run: |
-          ls -R infra-artifacts
-          ls -R public
-
       - name: Build index.html from template
         run: |
           export API_URL="$(cat infra-artifacts/api_url.txt)"
