@@ -2,13 +2,16 @@ name: Deploy Frontend to S3 (Dynamic API + Secure Bucket)
 
 on:
   push:
-    branches: [main]
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
   deploy-frontend:
     name: Deploy Frontend
     runs-on: ubuntu-latest
+
+    env:
+      GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
     steps:
       - name: Checkout code
@@ -19,11 +22,8 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y gh
 
-      - name: Authenticate gh CLI
-        run: echo "${{ secrets.PERSONAL_ACCESS_TOKEN }}" | gh auth login --with-token
-
-      - name: Get latest backend run ID
-        id: get_run
+      - name: Fetch latest backend run ID
+        id: find_run
         run: |
           echo "RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
