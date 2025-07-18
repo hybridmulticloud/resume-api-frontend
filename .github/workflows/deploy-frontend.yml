@@ -15,60 +15,45 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - name: Install GitHub CLI
-        run: |
+      - run: |
           sudo apt-get update
           sudo apt-get install -y gh
 
       - id: get_run
         run: |
-          echo "RUN_ID=$(gh run list \
+          RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
             --workflow 'Deploy Backend Infrastructure' \
             --branch main \
             --limit 1 \
             --json databaseId \
-            --jq '.[0].databaseId')" >> $GITHUB_ENV
+            --jq '.[0].databaseId')
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
-      - name: Download API URL artifact
-        run: |
-          gh run download $RUN_ID \
-            --repo hybridmulticloud/resume-api-backend \
-            --name api-url \
-            --dir infra-artifacts
+      - run: gh run download $RUN_ID --repo hybridmulticloud/resume-api-backend --name api-url --dir infra-artifacts
 
-      - name: Download CloudFront ID artifact
-        run: |
-          gh run download $RUN_ID \
-            --repo hybridmulticloud/resume-api-backend \
-            --name cloudfront-id \
-            --dir infra-artifacts
+      - run: gh run download $RUN_ID --repo hybridmulticloud/resume-api-backend --name cloudfront-id --dir infra-artifacts
 
-      - name: Build index.html from template
-        run: |
-          export API_URL="$(cat infra-artifacts/api_url.txt)"
-          envsubst < public/index.tmpl.html > public/index.html
+      - run: |
+          echo "API_URL=$(cat infra-artifacts/api_url.txt)" >> $GITHUB_ENV
+          echo "CLOUDFRONT_ID=$(cat infra-artifacts/cloudfront_id.txt)" >> $GITHUB_ENV
 
-      - name: Export CloudFront distribution ID
-        run: echo "CLOUDFRONT_ID=$(cat infra-artifacts/cloudfront_id.txt)" >> $GITHUB_ENV
+      - run: envsubst < public/index.tmpl.html > public/index.html
 
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+      - uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-region:            ${{ secrets.AWS_REGION }}
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ secrets.AWS_REGION }}
 
-      - name: Sync public/ to S3 via AWS CLI
-        run: |
+      - run: |
           aws s3 sync public/ s3://${{ secrets.S3_BUCKET_NAME }} \
             --delete \
-            --cache-control "index.html=max-age=0,no-cache,no-store,must-revalidate" \
+            --cache-control "index.html=max-age=0,no-cache,no-store" \
             --cache-control "*.css=max-age=86400" \
             --cache-control "*.js=max-age=86400"
 
-      - name: Invalidate CloudFront cache
-        run: |
+      - run: |
           aws cloudfront create-invalidation \
-            --distribution-id "$CLOUDFRONT_ID" \
+            --distribution-id $CLOUDFRONT_ID \
             --paths /index.html '/*.css' '/*.js'
