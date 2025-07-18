@@ -1,111 +1,86 @@
-# 🧑‍💼 KEREM KIRCI – Hybrid Cloud Resume Website  
-🌐 [https://hybridmulti.cloud](https://hybridmulti.cloud)
+# Cloud Resume Challenge: Frontend Website
 
-A production-grade, serverless resume site deployed with **Terraform**, **GitHub Actions**, and **AWS Cloud services**.  
-This project is my public-facing **hybrid cloud resume and portfolio site**, built as part of the [Cloud Resume Challenge](https://cloudresumechallenge.dev/). It demonstrates hands-on skills in **cloud infrastructure**, **serverless architecture**, and **DevOps automation** using modern best practices.
+This repository hosts the **static resume** for the Cloud Resume Challenge. It uses:
 
----
+- A **private S3 bucket**  
+- A **CloudFront** distribution with Origin Access Control  
+- A GitHub Actions pipeline that ties into the backend API
 
-## 🚀 Overview
-
-This is my public-facing hybrid cloud resume and portfolio site. It showcases:
-
-- Static frontend on S3 + CloudFront
-- Serverless API via Lambda + API Gateway
-- Visitor count stored in DynamoDB
-- Infrastructure managed entirely with Terraform
-- CI/CD pipelines with GitHub Actions
-- Monitoring via CloudWatch Logs, Alarms, and Synthetics
-
-➡️ **Live Site**: [https://hybridmulti.cloud](https://hybridmulti.cloud)
+When deployed, your browser sees my resume at **https://hybridmulti.cloud** and the page shows a live **visitor count** fetched from the backend API.
 
 ---
 
-## 🧱 Architecture
+## How It Links to the Backend
 
-| Component          | Technology                  |
-|--------------------|-----------------------------|
-| Frontend Hosting   | Amazon S3 + CloudFront CDN  |
-| Backend API        | AWS Lambda + API Gateway    |
-| Database           | Amazon DynamoDB (visitor count) |
-| Infrastructure     | Terraform IaC               |
-| CI/CD              | GitHub Actions              |
-| Monitoring         | AWS CloudWatch Logs + Synthetics |
+This frontend workflow downloads two artifacts from the [backend repo](https://github.com/hybridmulticloud/resume-api-backend):
+
+1. **`api-url`** → feeds into the HTML so the page can call the visitor-count API  
+2. **`cloudfront-id`** → used to invalidate the CloudFront cache after deployment
 
 ---
 
-## 📁 Project Structure
+## Architecture
 
-```
-resume-api-frontend/
-├── public/                  # 🚀 Static frontend files
-│   ├── index.html
-│   ├── style.css
-├── .github/                 # 🤖 GitHub Actions
-│   └── workflows/
-│       └── deploy.yml
-├── .gitignore               # 🧼 Git exclusions
-└── README.md                # 📄 You're here
-```
+```plaintext
+   Visitor’s Browser
+         │
+         ▼
++----------------------+       +----------------------+
+|   CloudFront CDN     | ◄──── |   S3 Bucket (OAC)    |
+| hybridmulti.cloud    |       | hybridmulti.cloud    |
++----------+-----------+       +----------+-----------+
+           │                              ▲
+           │                              │
+           ▼                              │
+  +----------------------+               │
+  |  Backend API        | ───────────────┘
+  | (API GW + Lambda)   |   visitor count
+  +----------------------+
+(Redraw in draw.io as needed.)
 
----
+Prerequisites
+AWS credentials (with S3 & CloudFront rights) in GitHub Secrets:
 
-## ⚙️ Technologies Used
+AWS_ACCESS_KEY_ID
 
-- **AWS S3 + CloudFront** – Static resume hosting + CDN
-- **AWS Lambda + API Gateway** – Visitor counter backend
-- **Amazon DynamoDB** – Visitor count store
-- **Terraform** – IaC for infrastructure provisioning
-- **GitHub Actions** – CI/CD for deployment automation
-- **CloudWatch** – Logs, metrics, and synthetic uptime monitoring
-- *(Planned)*: Multi-region failover + Route 53 DNS
+AWS_SECRET_ACCESS_KEY
 
----
+AWS_REGION
 
-## 📦 Deployment Pipeline
+A Personal Access Token (repo, workflow scopes) as PERSONAL_ACCESS_TOKEN
 
-Triggered automatically on commits to `main`:
+The backend must be deployed first so its artifacts exist
 
-1. Terraform infrastructure is applied (via backend repo)
-2. Static frontend (`public/`) is synced to S3
-3. CloudFront distribution is refreshed (optional)
+Deploying
+Clone this repo
 
-Everything is automated via `.github/workflows/deploy.yml`.
+bash
+git clone https://github.com/hybridmulticloud/resume-api-frontend.git
+cd resume-api-frontend
+Ensure GitHub Secrets & Repository Variables are set:
 
----
+AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
 
-## 🛡️ Monitoring & Logging
+S3_BUCKET_NAME = hybridmulti.cloud
 
-- ✅ **CloudWatch Logs** for Lambda execution and errors
-- ✅ **CloudWatch Alarms** for error and latency detection
-- ✅ **DynamoDB metrics** for read/write capacity
-- ✅ **CloudWatch Synthetics** checks for frontend availability
+PERSONAL_ACCESS_TOKEN
 
----
+Push to main or run the workflow manually.
 
-## 🔒 Security Notes
+Watch the Actions log: it will
 
-- S3 is private with access controlled by CloudFront
-- IAM follows **least privilege** principle
-- Lambda environment variable for `TABLE_NAME`
-- CORS headers set to `https://hybridmulti.cloud`
-- No hardcoded secrets; credentials passed securely via GitHub secrets
+Fetch api-url & cloudfront-id from the backend
 
----
+Substitute the API URL into index.html
 
-## 🧪 Planned Enhancements
+Sync to S3 and invalidate the CloudFront distribution
 
-- [ ] Add DynamoDB Global Tables (multi-region HA)
-- [ ] Add Route 53 DNS failover
+Local Preview
+bash
+npm install -g serve
+serve public/
+Then open http://localhost:5000 and set:
 
----
-
-## ✍️ About Me
-
-I'm **Kerem Kirci**, a Senior Technical Consultant and Hybrid Cloud Architect with over 15 years of experience designing and delivering enterprise-grade infrastructure across the UK and EMEA.
-
-This site is both a resume and a live case study of my cloud architecture, DevOps, and infrastructure-as-code capabilities.
-
-- 📬 Email: [kerem@hybridmulti.cloud](mailto:kerem@hybridmulti.cloud)  
-- 🔗 LinkedIn: [linkedin.com/in/kerem-kirci](https://linkedin.com/in/kerem-kirci)  
-- 💻 GitHub: [github.com/hybridmulticloud](https://github.com/hybridmulticloud)
+js
+window.API_URL = "https://<your-api-gateway>/UpdateVisitorCount"
+This static site displays my resume and real-time visitor count at https://hybridmulti.cloud as part of the Cloud Resume Challenge!
