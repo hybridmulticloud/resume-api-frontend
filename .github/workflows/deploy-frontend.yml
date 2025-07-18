@@ -48,7 +48,7 @@ jobs:
             --name cloudfront-id \
             --dir infra-artifacts
 
-      - name: Debug: list infra-artifacts
+      - name: Debug:list infra-artifacts
         run: ls -R infra-artifacts
 
       - name: Build index.html from template
