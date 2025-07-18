@@ -2,11 +2,11 @@
 
 This repository hosts the **static resume** for the Cloud Resume Challenge. It uses:
 
-- A **private S3 bucket**  
-- A **CloudFront** distribution with Origin Access Control  
+- A **private S3 bucket**
+- A **CloudFront** distribution with Origin Access Control
 - A GitHub Actions pipeline that ties into the backend API
 
-When deployed, your browser sees my resume at **https://hybridmulti.cloud** and the page shows a live **visitor count** fetched from the backend API.
+🏠 Live URL: **https://hybridmulti.cloud**
 
 ---
 
@@ -14,7 +14,7 @@ When deployed, your browser sees my resume at **https://hybridmulti.cloud** and 
 
 This frontend workflow downloads two artifacts from the [backend repo](https://github.com/hybridmulticloud/resume-api-backend):
 
-1. **`api-url`** → feeds into the HTML so the page can call the visitor-count API  
+1. **`api-url`** → feeds into the HTML so the page can call the visitor-count API
 2. **`cloudfront-id`** → used to invalidate the CloudFront cache after deployment
 
 ---
@@ -28,59 +28,27 @@ This frontend workflow downloads two artifacts from the [backend repo](https://g
 +----------------------+       +----------------------+
 |   CloudFront CDN     | ◄──── |   S3 Bucket (OAC)    |
 | hybridmulti.cloud    |       | hybridmulti.cloud    |
-+----------+-----------+       +----------+-----------+
-           │                              ▲
-           │                              │
-           ▼                              │
-  +----------------------+               │
-  |  Backend API        | ───────────────┘
-  | (API GW + Lambda)   |   visitor count
-  +----------------------+
-(Redraw in draw.io as needed.)
++----------------------+       +----------------------+
+         │
+         ▼
+Backend API: Lambda + API Gateway + DynamoDB (see backend repo)
+```
 
-Prerequisites
-AWS credentials (with S3 & CloudFront rights) in GitHub Secrets:
+---
 
-AWS_ACCESS_KEY_ID
+## CI/CD with GitHub Actions
 
-AWS_SECRET_ACCESS_KEY
+Deployment is fully automated via `.github/workflows/deploy-frontend.yml`.
 
-AWS_REGION
+Steps:
+1. Inject backend API URL into `index.tmpl.html`
+2. Upload static files to S3 bucket
+3. Invalidate CloudFront cache using the distribution ID
 
-A Personal Access Token (repo, workflow scopes) as PERSONAL_ACCESS_TOKEN
+You **do not need to deploy manually** — all changes are picked up from Git commits.
 
-The backend must be deployed first so its artifacts exist
+---
 
-Deploying
-Clone this repo
+## Contributing
 
-bash
-git clone https://github.com/hybridmulticloud/resume-api-frontend.git
-cd resume-api-frontend
-Ensure GitHub Secrets & Repository Variables are set:
-
-AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY, AWS_REGION
-
-S3_BUCKET_NAME = hybridmulti.cloud
-
-PERSONAL_ACCESS_TOKEN
-
-Push to main or run the workflow manually.
-
-Watch the Actions log: it will
-
-Fetch api-url & cloudfront-id from the backend
-
-Substitute the API URL into index.html
-
-Sync to S3 and invalidate the CloudFront distribution
-
-Local Preview
-bash
-npm install -g serve
-serve public/
-Then open http://localhost:5000 and set:
-
-js
-window.API_URL = "https://<your-api-gateway>/UpdateVisitorCount"
-This static site displays my resume and real-time visitor count at https://hybridmulti.cloud as part of the Cloud Resume Challenge!
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for step-by-step guide.
