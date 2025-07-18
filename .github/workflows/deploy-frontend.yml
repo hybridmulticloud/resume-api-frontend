@@ -11,43 +11,56 @@ jobs:
     runs-on: ubuntu-latest
     env:
       GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+
     steps:
       - uses: actions/checkout@v3
+
       - run: |
           sudo apt-get update
           sudo apt-get install -y gh
+
       - id: get_run
         run: |
-          echo "RUN_ID=$(gh run list \
+          RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
             --workflow 'Deploy Backend Infrastructure' \
             --branch main \
             --limit 1 \
             --json id \
-            --jq '.[0].id')" >> $GITHUB_ENV
-      - run: gh run download $RUN_ID \
-          --repo hybridmulticloud/resume-api-backend \
-          --name api-url \
-          --dir infra-artifacts
-      - run: gh run download $RUN_ID \
-          --repo hybridmulticloud/resume-api-backend \
-          --name cloudfront-id \
-          --dir infra-artifacts
+            --jq '.[0].id')
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+
       - run: |
-          export API_URL="$(cat infra-artifacts/api_url.txt)"
-          export CLOUDFRONT_ID="$(cat infra-artifacts/cloudfront_id.txt)"
+          gh run download \
+            --repo hybridmulticloud/resume-api-backend \
+            --name api-url \
+            --dir infra-artifacts \
+            $RUN_ID
+
+      - run: |
+          gh run download \
+            --repo hybridmulticloud/resume-api-backend \
+            --name cloudfront-id \
+            --dir infra-artifacts \
+            $RUN_ID
+
+      - run: |
+          API_URL=$(cat infra-artifacts/api_url.txt)
+          CLOUDFRONT_ID=$(cat infra-artifacts/cloudfront_id.txt)
           envsubst < public/index.tmpl.html > public/index.html
+
       - uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
           aws-region:            ${{ secrets.AWS_REGION }}
+
       - run: |
-          aws s3 sync public/ s3://${{ secrets.S3_BUCKET_NAME }} \
-            --delete \
+          aws s3 sync public/ s3://${{ secrets.S3_BUCKET_NAME }} --delete \
             --cache-control "index.html=max-age=0,no-cache,no-store,must-revalidate" \
             --cache-control "*.css=max-age=86400" \
             --cache-control "*.js=max-age=86400"
+
       - run: |
           aws cloudfront create-invalidation \
             --distribution-id $CLOUDFRONT_ID \
