@@ -31,23 +31,22 @@ jobs:
             --jq '.[0].databaseId')
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
-      - run: |
-          gh run download $RUN_ID \
-            --repo hybridmulticloud/resume-api-backend \
-            --name api-url \
-            --dir infra-artifacts
+      - run: gh run download $RUN_ID \
+          --repo hybridmulticloud/resume-api-backend \
+          --name api-url \
+          --dir infra-artifacts
 
-      - run: |
-          gh run download $RUN_ID \
-            --repo hybridmulticloud/resume-api-backend \
-            --name cloudfront-id \
-            --dir infra-artifacts
+      - run: gh run download $RUN_ID \
+          --repo hybridmulticloud/resume-api-backend \
+          --name cloudfront-id \
+          --dir infra-artifacts
 
-      - name: Export API_URL and CLOUDFRONT_ID
+      - name: Export API URL and CloudFront distribution ID
         run: |
-          echo "API_URL=$(cat infra-artifacts/api_url.txt)" >> $GITHUB_ENV
-          CF_ID=$(grep -Eo '^[A-Za-z0-9]+' infra-artifacts/cloudfront_id.txt | head -n1)
-          echo "CLOUDFRONT_ID=$CF_ID" >> $GITHUB_ENV
+          API_URL=$(grep -Eo 'https?://[^: ]+' infra-artifacts/api_url.txt | head -n1)
+          echo "API_URL=$API_URL" >> $GITHUB_ENV
+          CLOUDFRONT_ID=$(grep -Eo '^[A-Za-z0-9]+' infra-artifacts/cloudfront_id.txt | head -n1)
+          echo "CLOUDFRONT_ID=$CLOUDFRONT_ID" >> $GITHUB_ENV
 
       - name: Build index.html
         run: envsubst < public/index.tmpl.html > public/index.html
