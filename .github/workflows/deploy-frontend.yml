@@ -14,16 +14,15 @@ jobs:
       GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v3
+      - uses: actions/checkout@v3
 
       - name: Install GitHub CLI
         run: |
           sudo apt-get update
           sudo apt-get install -y gh
 
-      - name: Fetch latest backend run ID
-        id: find_run
+      - name: Get latest backend run ID
+        id: get_run
         run: |
           echo "RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
@@ -35,17 +34,15 @@ jobs:
 
       - name: Download API URL artifact
         run: |
-          gh run download \
+          gh run download $RUN_ID \
             --repo hybridmulticloud/resume-api-backend \
-            --run-id $RUN_ID \
             --name api-url \
             --dir infra-artifacts
 
       - name: Download CloudFront ID artifact
         run: |
-          gh run download \
+          gh run download $RUN_ID \
             --repo hybridmulticloud/resume-api-backend \
-            --run-id $RUN_ID \
             --name cloudfront-id \
             --dir infra-artifacts
 
