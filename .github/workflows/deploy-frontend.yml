@@ -2,28 +2,21 @@ name: Deploy Frontend to S3 (Dynamic API + Secure Bucket)
 
 on:
   push:
-    branches: [main]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
   deploy-frontend:
-    name: Deploy Frontend
     runs-on: ubuntu-latest
-
     env:
       GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-
     steps:
       - uses: actions/checkout@v3
-
-      - name: Install GitHub CLI
-        run: |
+      - run: |
           sudo apt-get update
           sudo apt-get install -y gh
-          gh version
-
-      - name: Get latest backend run ID
-        id: get_run
+      - id: get_run
         run: |
           echo "RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
@@ -32,53 +25,30 @@ jobs:
             --limit 1 \
             --json id \
             --jq '.[0].id')" >> $GITHUB_ENV
-          echo "Using backend run $RUN_ID"
-
-      - name: Download API URL artifact
-        run: |
-          gh run download $RUN_ID \
-            --repo hybridmulticloud/resume-api-backend \
-            --name api-url \
-            --dir infra-artifacts
-
-      - name: Download CloudFront ID artifact
-        run: |
-          gh run download $RUN_ID \
-            --repo hybridmulticloud/resume-api-backend \
-            --name cloudfront-id \
-            --dir infra-artifacts
-
-      - name: Debug:list infra-artifacts
-        run: ls -R infra-artifacts
-
-      - name: Build index.html from template
-        run: |
-          export API_URL="$(cat infra-artifacts/api-url.txt)"
+      - run: gh run download $RUN_ID \
+          --repo hybridmulticloud/resume-api-backend \
+          --name api-url \
+          --dir infra-artifacts
+      - run: gh run download $RUN_ID \
+          --repo hybridmulticloud/resume-api-backend \
+          --name cloudfront-id \
+          --dir infra-artifacts
+      - run: |
+          export API_URL="$(cat infra-artifacts/api_url.txt)"
+          export CLOUDFRONT_ID="$(cat infra-artifacts/cloudfront_id.txt)"
           envsubst < public/index.tmpl.html > public/index.html
-
-      - name: Export CloudFront distribution ID
-        run: echo "CLOUDFRONT_DISTRIBUTION_ID=$(cat infra-artifacts/cloudfront-id.txt)" >> $GITHUB_ENV
-
-      - name: Configure AWS credentials
-        uses: aws-actions/configure-aws-credentials@v2
+      - uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-region:            ${{ secrets.AWS_REGION }}
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-      - name: Verify S3 bucket exists
-        run: aws s3api head-bucket --bucket ${{ secrets.S3_BUCKET_NAME }}
-
-      - name: Sync public/ to S3 via AWS CLI
-        run: |
+          aws-region:            ${{ secrets.AWS_REGION }}
+      - run: |
           aws s3 sync public/ s3://${{ secrets.S3_BUCKET_NAME }} \
             --delete \
             --cache-control "index.html=max-age=0,no-cache,no-store,must-revalidate" \
             --cache-control "*.css=max-age=86400" \
             --cache-control "*.js=max-age=86400"
-
-      - name: Invalidate CloudFront cache via AWS CLI
-        run: |
+      - run: |
           aws cloudfront create-invalidation \
-            --distribution-id ${{ env.CLOUDFRONT_DISTRIBUTION_ID }} \
+            --distribution-id $CLOUDFRONT_ID \
             --paths /index.html '/*.css' '/*.js'
