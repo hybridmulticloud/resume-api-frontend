@@ -59,19 +59,34 @@ jobs:
 
       - name: Parse & export clean values
         run: |
-          # Show raw files in logs for debugging
-          echo "📝 api_gateway_url.txt:"; cat infra-artifacts/api_gateway_url.txt
-          echo "📝 frontend_bucket_name.txt:"; cat infra-artifacts/frontend_bucket_name.txt
-          echo "📝 cloudfront_distribution_id.txt:"; cat infra-artifacts/cloudfront_distribution_id.txt
+          # strip out any runner “[command]” lines and debug suffixes, then take first real line
+          API_URL=$(grep -vE '^
 
-          # Extract only the real parts (strip Terraform debug noise)
-          API_URL=$(grep -Eo 'https?://[^ ]+' infra-artifacts/api_gateway_url.txt | head -n1)
-          FRONTEND_BUCKET_NAME=$(grep -Eo '^[A-Za-z0-9.-]+' infra-artifacts/frontend_bucket_name.txt | head -n1)
-          CLOUDFRONT_DIST_ID=$(grep -Eo '^[A-Za-z0-9]+' infra-artifacts/cloudfront_distribution_id.txt | head -n1)
+\[command\]
 
-          # Fail if any are empty
+|::debug' infra-artifacts/api_gateway_url.txt \
+                    | head -n1 \
+                    | sed 's/::.*//' \
+                    | xargs)
+          FRONTEND_BUCKET_NAME=$(grep -vE '^
+
+\[command\]
+
+|::debug' infra-artifacts/frontend_bucket_name.txt \
+                    | head -n1 \
+                    | sed 's/::.*//' \
+                    | xargs)
+          CLOUDFRONT_DIST_ID=$(grep -vE '^
+
+\[command\]
+
+|::debug' infra-artifacts/cloudfront_distribution_id.txt \
+                    | head -n1 \
+                    | sed 's/::.*//' \
+                    | xargs)
+
           if [[ -z "$API_URL" || -z "$FRONTEND_BUCKET_NAME" || -z "$CLOUDFRONT_DIST_ID" ]]; then
-            echo "❌ Parsing failed. Raw contents:" >&2
+            echo "❌ Parsing failed. Raw files:" >&2
             cat infra-artifacts/api_gateway_url.txt     >&2
             cat infra-artifacts/frontend_bucket_name.txt >&2
             cat infra-artifacts/cloudfront_distribution_id.txt >&2
@@ -82,7 +97,6 @@ jobs:
           echo "✅ Parsed FRONTEND_BUCKET_NAME = $FRONTEND_BUCKET_NAME"
           echo "✅ Parsed CLOUDFRONT_DIST_ID   = $CLOUDFRONT_DIST_ID"
 
-          # Export for later steps
           echo "API_URL=$API_URL"                            >> $GITHUB_ENV
           echo "FRONTEND_BUCKET_NAME=$FRONTEND_BUCKET_NAME" >> $GITHUB_ENV
           echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"       >> $GITHUB_ENV
