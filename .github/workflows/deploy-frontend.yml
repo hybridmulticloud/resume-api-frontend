@@ -46,8 +46,7 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
-          gh run download \
-            "$RUN_ID" \
+          gh run download "$RUN_ID" \
             --repo hybridmulticloud/resume-api-backend \
             --name infra-outputs \
             --dir infra-artifacts
@@ -63,22 +62,25 @@ jobs:
 
       - name: Parse & export clean values
         run: |
-          # Strip out any lines with “[command]” or “::debug”
-          API_URL=$(sed -e '/^
+          # Strip out lines containing "[command]" or "::debug"
+          API_URL=$(sed -e "/^
+
 \[command\]
 
-/d' -e '/::debug/d' infra-artifacts/api_gateway_url.txt | head -n1)
-          FRONTEND_BUCKET_NAME=$(sed -e '/^
+/d" -e "/::debug/d" infra-artifacts/api_gateway_url.txt | head -n1)
+          FRONTEND_BUCKET_NAME=$(sed -e "/^
+
 \[command\]
 
-/d' -e '/::debug/d' infra-artifacts/frontend_bucket_name.txt | head -n1)
-          CLOUDFRONT_DIST_ID=$(sed -e '/^
+/d" -e "/::debug/d" infra-artifacts/frontend_bucket_name.txt | head -n1)
+          CLOUDFRONT_DIST_ID=$(sed -e "/^
+
 \[command\]
 
-/d' -e '/::debug/d' infra-artifacts/cloudfront_distribution_id.txt | head -n1)
+/d" -e "/::debug/d" infra-artifacts/cloudfront_distribution_id.txt | head -n1)
 
           if [[ -z "$API_URL" || -z "$FRONTEND_BUCKET_NAME" || -z "$CLOUDFRONT_DIST_ID" ]]; then
-            echo "❌ Parsing failed. Dumping raw files:" >&2
+            echo "❌ Failed to parse values. Raw contents:" >&2
             sed -n '1,5p' infra-artifacts/api_gateway_url.txt     >&2
             sed -n '1,5p' infra-artifacts/frontend_bucket_name.txt >&2
             sed -n '1,5p' infra-artifacts/cloudfront_distribution_id.txt >&2
