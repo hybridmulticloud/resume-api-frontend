@@ -10,9 +10,9 @@ jobs:
   deploy-frontend:
     runs-on: ubuntu-latest
     env:
-      GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      AWS_REGION: ${{ secrets.AWS_REGION }}
-      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
+      GH_TOKEN:              ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      AWS_REGION:            ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
@@ -38,17 +38,20 @@ jobs:
 
       - name: Download infra-outputs artifact
         run: |
-          gh run download $RUN_ID \
+          gh run download \
+            $RUN_ID \
             --repo hybridmulticloud/resume-api-backend \
             --name infra-outputs \
             --dir infra-artifacts
 
-      - name: Export API_URL and CLOUDFRONT_ID
+      - name: Set API_URL & CLOUDFRONT_ID
         run: |
-          API_URL=$(cat infra-artifacts/api_url.txt)
-          echo "API_URL=$API_URL" >> $GITHUB_ENV
-          CLOUDFRONT_ID=$(cat infra-artifacts/cloudfront_distribution_id.txt)
-          echo "CLOUDFRONT_ID=$CLOUDFRONT_ID" >> $GITHUB_ENV
+          BUCKET=$(cat infra-artifacts/frontend_bucket_name.txt)
+          DIST_ID=$(cat infra-artifacts/cloudfront_distribution_id.txt)
+
+          # Build the public API endpoint using your custom domain:
+          echo "API_URL=https://${BUCKET}/UpdateVisitorCount" >> $GITHUB_ENV
+          echo "CLOUDFRONT_ID=${DIST_ID}"         >> $GITHUB_ENV
 
       - name: Build index.html
         run: envsubst < public/index.tmpl.html > public/index.html
