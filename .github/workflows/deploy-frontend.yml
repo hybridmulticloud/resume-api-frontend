@@ -62,13 +62,13 @@ jobs:
 
       - name: Parse & export clean values
         run: |
-          # Drop any lines starting with "/" or containing "::debug::"
-          API_URL=$(grep -vE '^/|::debug::' infra-artifacts/api_gateway_url.txt | head -n1)
-          FRONTEND_BUCKET_NAME=$(grep -vE '^/|::debug::' infra-artifacts/frontend_bucket_name.txt | head -n1)
-          CLOUDFRONT_DIST_ID=$(grep -vE '^/|::debug::' infra-artifacts/cloudfront_distribution_id.txt | head -n1)
+          # take first line, strip debug suffix, trim whitespace
+          API_URL=$(head -n1 infra-artifacts/api_gateway_url.txt | sed 's/::debug.*//' | xargs)
+          FRONTEND_BUCKET_NAME=$(head -n1 infra-artifacts/frontend_bucket_name.txt | sed 's/::debug.*//' | xargs)
+          CLOUDFRONT_DIST_ID=$(head -n1 infra-artifacts/cloudfront_distribution_id.txt | sed 's/::debug.*//' | xargs)
 
           if [[ -z "$API_URL" || -z "$FRONTEND_BUCKET_NAME" || -z "$CLOUDFRONT_DIST_ID" ]]; then
-            echo "❌ Parsing failed. Raw files:" >&2
+            echo "❌ Parsing failed – raw contents:" >&2
             cat infra-artifacts/api_gateway_url.txt     >&2
             cat infra-artifacts/frontend_bucket_name.txt >&2
             cat infra-artifacts/cloudfront_distribution_id.txt >&2
@@ -79,7 +79,7 @@ jobs:
           echo "✅ FRONTEND_BUCKET_NAME = $FRONTEND_BUCKET_NAME"
           echo "✅ CLOUDFRONT_DIST_ID   = $CLOUDFRONT_DIST_ID"
 
-          echo "API_URL=$API_URL"                            >> $GITHUB_ENV
+          echo "API_URL=$API_URL"                          >> $GITHUB_ENV
           echo "FRONTEND_BUCKET_NAME=$FRONTEND_BUCKET_NAME" >> $GITHUB_ENV
           echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"     >> $GITHUB_ENV
 
@@ -96,13 +96,11 @@ jobs:
 
       - name: Sync site to S3
         run: |
-          aws s3 sync public/ "s3://${FRONTEND_BUCKET_NAME}" --delete
+          aws s3 sync public/ s3://${FRONTEND_BUCKET_NAME} --delete
           aws s3 cp public/index.html \
-            "s3://${FRONTEND_BUCKET_NAME}/index.html" \
+            s3://${FRONTEND_BUCKET_NAME}/index.html \
             --cache-control "max-age=0,no-cache,no-store"
-          # Repeat the lines below for other assets:
-          # aws s3 cp public/app.css  "s3://${FRONTEND_BUCKET_NAME}/app.css"  --cache-control "max-age=86400"
-          # aws s3 cp public/app.js   "s3://${FRONTEND_BUCKET_NAME}/app.js"   --cache-control "max-age=86400"
+          # …add S3 CP lines for other assets as needed…
 
       - name: Confirm CloudFront distribution
         run: aws cloudfront get-distribution --id "${CLOUDFRONT_DIST_ID}"
