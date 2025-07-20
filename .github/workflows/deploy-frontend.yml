@@ -14,9 +14,9 @@ jobs:
         shell: bash
 
     env:
-      GH_TOKEN:              ${{ secrets.PERSONAL_ACCESS_TOKEN }}
-      AWS_REGION:            ${{ secrets.AWS_REGION }}
-      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+      GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      AWS_REGION: ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID: ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
@@ -59,35 +59,13 @@ jobs:
 
       - name: Parse & export clean values
         run: |
-          # strip out any runner “[command]” lines and debug suffixes, then take first real line
-          API_URL=$(grep -vE '^
-
-\[command\]
-
-|::debug' infra-artifacts/api_gateway_url.txt \
-                    | head -n1 \
-                    | sed 's/::.*//' \
-                    | xargs)
-          FRONTEND_BUCKET_NAME=$(grep -vE '^
-
-\[command\]
-
-|::debug' infra-artifacts/frontend_bucket_name.txt \
-                    | head -n1 \
-                    | sed 's/::.*//' \
-                    | xargs)
-          CLOUDFRONT_DIST_ID=$(grep -vE '^
-
-\[command\]
-
-|::debug' infra-artifacts/cloudfront_distribution_id.txt \
-                    | head -n1 \
-                    | sed 's/::.*//' \
-                    | xargs)
+          API_URL=$(grep -vE '^\[command\]|::debug' infra-artifacts/api_gateway_url.txt | head -n1 | sed 's/::.*//' | xargs)
+          FRONTEND_BUCKET_NAME=$(grep -vE '^\[command\]|::debug' infra-artifacts/frontend_bucket_name.txt | head -n1 | sed 's/::.*//' | xargs)
+          CLOUDFRONT_DIST_ID=$(grep -vE '^\[command\]|::debug' infra-artifacts/cloudfront_distribution_id.txt | head -n1 | sed 's/::.*//' | xargs)
 
           if [[ -z "$API_URL" || -z "$FRONTEND_BUCKET_NAME" || -z "$CLOUDFRONT_DIST_ID" ]]; then
             echo "❌ Parsing failed. Raw files:" >&2
-            cat infra-artifacts/api_gateway_url.txt     >&2
+            cat infra-artifacts/api_gateway_url.txt >&2
             cat infra-artifacts/frontend_bucket_name.txt >&2
             cat infra-artifacts/cloudfront_distribution_id.txt >&2
             exit 1
@@ -97,9 +75,9 @@ jobs:
           echo "✅ Parsed FRONTEND_BUCKET_NAME = $FRONTEND_BUCKET_NAME"
           echo "✅ Parsed CLOUDFRONT_DIST_ID   = $CLOUDFRONT_DIST_ID"
 
-          echo "API_URL=$API_URL"                            >> $GITHUB_ENV
+          echo "API_URL=$API_URL" >> $GITHUB_ENV
           echo "FRONTEND_BUCKET_NAME=$FRONTEND_BUCKET_NAME" >> $GITHUB_ENV
-          echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"       >> $GITHUB_ENV
+          echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID" >> $GITHUB_ENV
 
       - name: Build index.html
         run: |
@@ -108,8 +86,8 @@ jobs:
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-region:            ${{ env.AWS_REGION }}
-          aws-access-key-id:     ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-region: ${{ env.AWS_REGION }}
+          aws-access-key-id: ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
       - name: Sync site to S3
