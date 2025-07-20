@@ -60,8 +60,8 @@ jobs:
             fi
           done
 
-        - name: Parse & export clean values
-          run: |
+      - name: Parse & export clean values
+        run: |
           # Drop any lines starting with "/" or containing "::debug::"
           API_URL=$(grep -vE '^/|::debug::' infra-artifacts/api_gateway_url.txt | head -n1)
           FRONTEND_BUCKET_NAME=$(grep -vE '^/|::debug::' infra-artifacts/frontend_bucket_name.txt | head -n1)
@@ -79,7 +79,7 @@ jobs:
           echo "✅ FRONTEND_BUCKET_NAME = $FRONTEND_BUCKET_NAME"
           echo "✅ CLOUDFRONT_DIST_ID   = $CLOUDFRONT_DIST_ID"
 
-          echo "API_URL=$API_URL"                          >> $GITHUB_ENV
+          echo "API_URL=$API_URL"                            >> $GITHUB_ENV
           echo "FRONTEND_BUCKET_NAME=$FRONTEND_BUCKET_NAME" >> $GITHUB_ENV
           echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"     >> $GITHUB_ENV
 
@@ -97,10 +97,12 @@ jobs:
       - name: Sync site to S3
         run: |
           aws s3 sync public/ "s3://${FRONTEND_BUCKET_NAME}" --delete
-          aws s3 cp public/index.html "s3://${FRONTEND_BUCKET_NAME}/index.html" --cache-control "max-age=0,no-cache,no-store"
-          # Repeat the line below for each CSS or JS file you want cache-control on
-          # aws s3 cp public/your-file.css "s3://${FRONTEND_BUCKET_NAME}/your-file.css" --cache-control "max-age=86400"
-          # aws s3 cp public/your-file.js "s3://${FRONTEND_BUCKET_NAME}/your-file.js" --cache-control "max-age=86400"
+          aws s3 cp public/index.html \
+            "s3://${FRONTEND_BUCKET_NAME}/index.html" \
+            --cache-control "max-age=0,no-cache,no-store"
+          # Repeat the lines below for other assets:
+          # aws s3 cp public/app.css  "s3://${FRONTEND_BUCKET_NAME}/app.css"  --cache-control "max-age=86400"
+          # aws s3 cp public/app.js   "s3://${FRONTEND_BUCKET_NAME}/app.js"   --cache-control "max-age=86400"
 
       - name: Confirm CloudFront distribution
         run: aws cloudfront get-distribution --id "${CLOUDFRONT_DIST_ID}"
