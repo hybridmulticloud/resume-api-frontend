@@ -13,13 +13,16 @@ jobs:
       GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
 
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout code
+        uses: actions/checkout@v3
 
-      - run: |
+      - name: Install GitHub CLI
+        run: |
           sudo apt-get update
           sudo apt-get install -y gh
 
       - id: get_run
+        name: Get Backend Run ID
         run: |
           RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
@@ -30,46 +33,41 @@ jobs:
             --jq '.[0].databaseId')
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
-      - name: Download API URL artifact
+      - name: Download infra-outputs artifact
         run: |
           gh run download \
             --repo hybridmulticloud/resume-api-backend \
-            --name api-url \
-            --dir infra-artifacts \
-            $RUN_ID
-
-      - name: Download CloudFront ID artifact
-        run: |
-          gh run download \
-            --repo hybridmulticloud/resume-api-backend \
-            --name cloudfront-id \
-            --dir infra-artifacts \
-            $RUN_ID
+            --run-id $RUN_ID \
+            --name infra-outputs \
+            --dir infra-artifacts
 
       - name: Export API_URL and CLOUDFRONT_ID
         run: |
-          API_URL=$(grep -Eo 'https?://[^: ]+' infra-artifacts/api_url.txt | head -n1)
+          API_URL=$(cat infra-artifacts/api_url.txt)
           echo "API_URL=$API_URL" >> $GITHUB_ENV
-          CLOUDFRONT_ID=$(grep -Eo '^[A-Za-z0-9]+' infra-artifacts/cloudfront_id.txt | head -n1)
+          CLOUDFRONT_ID=$(cat infra-artifacts/cloudfront_distribution_id.txt)
           echo "CLOUDFRONT_ID=$CLOUDFRONT_ID" >> $GITHUB_ENV
 
       - name: Build index.html
         run: envsubst < public/index.tmpl.html > public/index.html
 
-      - uses: aws-actions/configure-aws-credentials@v2
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-region:            ${{ secrets.AWS_REGION }}
           aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      - run: |
+      - name: Sync site to S3
+        run: |
           aws s3 sync public/ s3://${{ secrets.S3_BUCKET_NAME }} \
             --delete \
             --cache-control "index.html=max-age=0,no-cache,no-store" \
             --cache-control "*.css=max-age=86400" \
             --cache-control "*.js=max-age=86400"
 
-      - run: |
+      - name: Invalidate CloudFront cache
+        run: |
           aws cloudfront create-invalidation \
             --distribution-id "$CLOUDFRONT_ID" \
             --paths /index.html '/*.css' '/*.js'
