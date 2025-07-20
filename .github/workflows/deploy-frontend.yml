@@ -65,17 +65,14 @@ jobs:
         run: |
           # Strip out any lines with “[command]” or “::debug”
           API_URL=$(sed -e '/^
-
 \[command\]
 
 /d' -e '/::debug/d' infra-artifacts/api_gateway_url.txt | head -n1)
           FRONTEND_BUCKET_NAME=$(sed -e '/^
-
 \[command\]
 
 /d' -e '/::debug/d' infra-artifacts/frontend_bucket_name.txt | head -n1)
           CLOUDFRONT_DIST_ID=$(sed -e '/^
-
 \[command\]
 
 /d' -e '/::debug/d' infra-artifacts/cloudfront_distribution_id.txt | head -n1)
