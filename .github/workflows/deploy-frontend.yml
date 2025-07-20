@@ -46,12 +46,12 @@ jobs:
 
       - name: Set API_URL & CLOUDFRONT_ID
         run: |
-          BUCKET=$(cat infra-artifacts/frontend_bucket_name.txt)
-          DIST_ID=$(cat infra-artifacts/cloudfront_distribution_id.txt)
-
-          # Build the public API endpoint using your custom domain:
-          echo "API_URL=https://${BUCKET}/UpdateVisitorCount" >> $GITHUB_ENV
-          echo "CLOUDFRONT_ID=${DIST_ID}"         >> $GITHUB_ENV
+          BUCKET=$(< infra-artifacts/frontend_bucket_name.txt)
+          DIST_ID=$(< infra-artifacts/cloudfront_distribution_id.txt)
+          cat <<EOF >> $GITHUB_ENV
+API_URL=https://${BUCKET}/UpdateVisitorCount
+CLOUDFRONT_ID=${DIST_ID}
+EOF
 
       - name: Build index.html
         run: envsubst < public/index.tmpl.html > public/index.html
