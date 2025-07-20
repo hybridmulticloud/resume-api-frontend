@@ -9,6 +9,7 @@ on:
 jobs:
   deploy-frontend:
     runs-on: ubuntu-latest
+    # we need a PAT to pull artifacts via GH CLI
     env:
       GH_TOKEN:              ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       AWS_REGION:            ${{ secrets.AWS_REGION }}
@@ -21,7 +22,7 @@ jobs:
 
       - name: Install GitHub CLI
         run: |
-          sudo apt-get update
+          sudo apt-get update -y
           sudo apt-get install -y gh
 
       - name: Get Backend Run ID
@@ -43,11 +44,23 @@ jobs:
             --name infra-outputs \
             --dir infra-artifacts
 
-      - name: Set API_URL & CLOUDFRONT_ID
+      - name: Validate downloaded files
         run: |
-          BUCKET=$(< infra-artifacts/frontend_bucket_name.txt)
-          DIST_ID=$(< infra-artifacts/cloudfront_distribution_id.txt)
-          printf "API_URL=https://${BUCKET}/UpdateVisitorCount\nCLOUDFRONT_ID=${DIST_ID}\n" >> $GITHUB_ENV
+          for f in frontend_bucket_name.txt cloudfront_distribution_id.txt; do
+            if [ ! -f infra-artifacts/$f ]; then
+              echo "❌ Missing infra-artifacts/$f" >&2
+              exit 1
+            fi
+          done
+
+      - name: Export API_URL & CLOUDFRONT_ID
+        run: |
+          # strip out anything after the real bucket name (drops debug annotations)
+          BUCKET=$(head -n1 infra-artifacts/frontend_bucket_name.txt | cut -d':' -f1)
+          DIST_ID=$(head -n1 infra-artifacts/cloudfront_distribution_id.txt | cut -d':' -f1)
+
+          printf "API_URL=https://${BUCKET}/UpdateVisitorCount\n" >> $GITHUB_ENV
+          printf "CLOUDFRONT_ID=${DIST_ID}\n"         >> $GITHUB_ENV
 
       - name: Build index.html
         run: envsubst < public/index.tmpl.html > public/index.html
