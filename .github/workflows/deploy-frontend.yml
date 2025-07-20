@@ -20,7 +20,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@v3
 
       - name: Install GitHub CLI
@@ -52,33 +52,37 @@ jobs:
             --name infra-outputs \
             --dir infra-artifacts
 
-      - name: Validate files are present
+      - name: Validate artifact files
         run: |
           for f in api_gateway_url.txt frontend_bucket_name.txt cloudfront_distribution_id.txt; do
-            if [ ! -f infra-artifacts/$f ]; then
+            if [[ ! -f infra-artifacts/$f ]]; then
               echo "❌ Missing infra-artifacts/$f" >&2
               exit 1
             fi
           done
 
-      - name: Parse & export env vars
+      - name: Parse & export clean values
         run: |
-          # strip any "::debug::" noise, take only the first valid URL/ID
-          API_URL=$(head -n1 infra-artifacts/api_gateway_url.txt | grep -Eo '^https?://[^ ]+')
-          BUCKET=$(head -n1 infra-artifacts/frontend_bucket_name.txt | grep -Eo '^[A-Za-z0-9.-]+')
-          DIST_ID=$(head -n1 infra-artifacts/cloudfront_distribution_id.txt | grep -Eo '^[A-Za-z0-9]+')
+          # Strip anything after the first "::" (debug noise)
+          raw_api=$(head -n1 infra-artifacts/api_gateway_url.txt)
+          API_URL=$(echo "$raw_api" | sed 's/::.*//' | tr -d '\r\n')
 
-          echo "✅ Using API_URL          = $API_URL"
-          echo "✅ Using FRONTEND_BUCKET  = $BUCKET"
-          echo "✅ Using CLOUDFRONT_DIST_ID = $DIST_ID"
+          raw_bucket=$(head -n1 infra-artifacts/frontend_bucket_name.txt)
+          FRONTEND_BUCKET_NAME=$(echo "$raw_bucket" | sed 's/::.*//' | grep -Eo '^[A-Za-z0-9.-]+' | tr -d '\r\n')
 
-          echo "API_URL=$API_URL"                       >> $GITHUB_ENV
-          echo "FRONTEND_BUCKET_NAME=$BUCKET"          >> $GITHUB_ENV
-          echo "CLOUDFRONT_DIST_ID=$DIST_ID"           >> $GITHUB_ENV
+          raw_dist=$(head -n1 infra-artifacts/cloudfront_distribution_id.txt)
+          CLOUDFRONT_DIST_ID=$(echo "$raw_dist" | sed 's/::.*//' | grep -Eo '^[A-Za-z0-9]+' | tr -d '\r\n')
+
+          echo "✅ API_URL:           $API_URL"
+          echo "✅ FRONTEND_BUCKET:   $FRONTEND_BUCKET_NAME"
+          echo "✅ CLOUDFRONT_DIST_ID: $CLOUDFRONT_DIST_ID"
+
+          echo "API_URL=$API_URL"                        >> $GITHUB_ENV
+          echo "FRONTEND_BUCKET_NAME=$FRONTEND_BUCKET_NAME" >> $GITHUB_ENV
+          echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"   >> $GITHUB_ENV
 
       - name: Build index.html
         run: |
-          echo "🔧 Replacing placeholder with $API_URL"
           envsubst '$API_URL' < public/index.tmpl.html > public/index.html
 
       - name: Configure AWS credentials
@@ -90,17 +94,17 @@ jobs:
 
       - name: Sync site to S3
         run: |
-          aws s3 sync public/ s3://${{ env.FRONTEND_BUCKET_NAME }} \
+          aws s3 sync public/ s3://${FRONTEND_BUCKET_NAME} \
             --delete \
             --cache-control "index.html=max-age=0,no-cache,no-store" \
             --cache-control "*.css=max-age=86400" \
             --cache-control "*.js=max-age=86400"
 
       - name: Confirm CloudFront distribution
-        run: aws cloudfront get-distribution --id ${{ env.CLOUDFRONT_DIST_ID }}
+        run: aws cloudfront get-distribution --id $CLOUDFRONT_DIST_ID
 
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id "${{ env.CLOUDFRONT_DIST_ID }}" \
+            --distribution-id $CLOUDFRONT_DIST_ID \
             --paths "/index.html" "/*.css" "/*.js"
