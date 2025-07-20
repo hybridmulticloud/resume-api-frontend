@@ -62,22 +62,9 @@ jobs:
 
       - name: Parse & export clean values
         run: |
-          # Strip out lines containing "[command]" or "::debug"
-          API_URL=$(sed -e "/^
-
-\[command\]
-
-/d" -e "/::debug/d" infra-artifacts/api_gateway_url.txt | head -n1)
-          FRONTEND_BUCKET_NAME=$(sed -e "/^
-
-\[command\]
-
-/d" -e "/::debug/d" infra-artifacts/frontend_bucket_name.txt | head -n1)
-          CLOUDFRONT_DIST_ID=$(sed -e "/^
-
-\[command\]
-
-/d" -e "/::debug/d" infra-artifacts/cloudfront_distribution_id.txt | head -n1)
+          API_URL=$(sed -e "/\[command\]/d" -e "/::debug/d" infra-artifacts/api_gateway_url.txt | head -n1)
+          FRONTEND_BUCKET_NAME=$(sed -e "/\[command\]/d" -e "/::debug/d" infra-artifacts/frontend_bucket_name.txt | head -n1)
+          CLOUDFRONT_DIST_ID=$(sed -e "/\[command\]/d" -e "/::debug/d" infra-artifacts/cloudfront_distribution_id.txt | head -n1)
 
           if [[ -z "$API_URL" || -z "$FRONTEND_BUCKET_NAME" || -z "$CLOUDFRONT_DIST_ID" ]]; then
             echo "❌ Failed to parse values. Raw contents:" >&2
@@ -108,11 +95,11 @@ jobs:
 
       - name: Sync site to S3
         run: |
-          aws s3 sync public/ "s3://${FRONTEND_BUCKET_NAME}" \
-            --delete \
-            --cache-control "index.html=max-age=0,no-cache,no-store" \
-            --cache-control "*.css=max-age=86400" \
-            --cache-control "*.js=max-age=86400"
+          aws s3 sync public/ "s3://${FRONTEND_BUCKET_NAME}" --delete
+          aws s3 cp public/index.html "s3://${FRONTEND_BUCKET_NAME}/index.html" --cache-control "max-age=0,no-cache,no-store"
+          # Repeat the line below for each CSS or JS file you want cache-control on
+          # aws s3 cp public/your-file.css "s3://${FRONTEND_BUCKET_NAME}/your-file.css" --cache-control "max-age=86400"
+          # aws s3 cp public/your-file.js "s3://${FRONTEND_BUCKET_NAME}/your-file.js" --cache-control "max-age=86400"
 
       - name: Confirm CloudFront distribution
         run: aws cloudfront get-distribution --id "${CLOUDFRONT_DIST_ID}"
