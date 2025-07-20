@@ -30,8 +30,6 @@ jobs:
 
       - name: Get Backend Run ID
         id: get_run
-        env:
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
@@ -43,10 +41,9 @@ jobs:
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
       - name: Download infra-outputs artifact
-        env:
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
-          gh run download "$RUN_ID" \
+          gh run download \
+            "$RUN_ID" \
             --repo hybridmulticloud/resume-api-backend \
             --name infra-outputs \
             --dir infra-artifacts
@@ -62,26 +59,33 @@ jobs:
 
       - name: Parse & export clean values
         run: |
-          # take first line, strip debug suffix, trim whitespace
-          API_URL=$(head -n1 infra-artifacts/api_gateway_url.txt | sed 's/::debug.*//' | xargs)
-          FRONTEND_BUCKET_NAME=$(head -n1 infra-artifacts/frontend_bucket_name.txt | sed 's/::debug.*//' | xargs)
-          CLOUDFRONT_DIST_ID=$(head -n1 infra-artifacts/cloudfront_distribution_id.txt | sed 's/::debug.*//' | xargs)
+          echo "📝 Raw api_gateway_url.txt:"
+          cat infra-artifacts/api_gateway_url.txt
+          echo "📝 Raw frontend_bucket_name.txt:"
+          cat infra-artifacts/frontend_bucket_name.txt
+          echo "📝 Raw cloudfront_distribution_id.txt:"
+          cat infra-artifacts/cloudfront_distribution_id.txt
+
+          # Extract only the real URL / bucket / distribution ID
+          API_URL=$(grep -Eo 'https?://[^ ]+' infra-artifacts/api_gateway_url.txt | head -n1)
+          FRONTEND_BUCKET_NAME=$(grep -Eo '^[[:alnum:].-]+' infra-artifacts/frontend_bucket_name.txt | head -n1)
+          CLOUDFRONT_DIST_ID=$(grep -Eo '^[[:alnum:]]+' infra-artifacts/cloudfront_distribution_id.txt | head -n1)
 
           if [[ -z "$API_URL" || -z "$FRONTEND_BUCKET_NAME" || -z "$CLOUDFRONT_DIST_ID" ]]; then
-            echo "❌ Parsing failed – raw contents:" >&2
+            echo "❌ Failed to parse clean values. Dumping raw files:" >&2
             cat infra-artifacts/api_gateway_url.txt     >&2
             cat infra-artifacts/frontend_bucket_name.txt >&2
             cat infra-artifacts/cloudfront_distribution_id.txt >&2
             exit 1
           fi
 
-          echo "✅ API_URL             = $API_URL"
-          echo "✅ FRONTEND_BUCKET_NAME = $FRONTEND_BUCKET_NAME"
-          echo "✅ CLOUDFRONT_DIST_ID   = $CLOUDFRONT_DIST_ID"
+          echo "✅ Parsed API_URL             = $API_URL"
+          echo "✅ Parsed FRONTEND_BUCKET_NAME = $FRONTEND_BUCKET_NAME"
+          echo "✅ Parsed CLOUDFRONT_DIST_ID   = $CLOUDFRONT_DIST_ID"
 
-          echo "API_URL=$API_URL"                          >> $GITHUB_ENV
+          echo "API_URL=$API_URL"                            >> $GITHUB_ENV
           echo "FRONTEND_BUCKET_NAME=$FRONTEND_BUCKET_NAME" >> $GITHUB_ENV
-          echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"     >> $GITHUB_ENV
+          echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"       >> $GITHUB_ENV
 
       - name: Build index.html
         run: |
@@ -100,7 +104,6 @@ jobs:
           aws s3 cp public/index.html \
             s3://${FRONTEND_BUCKET_NAME}/index.html \
             --cache-control "max-age=0,no-cache,no-store"
-          # …add S3 CP lines for other assets as needed…
 
       - name: Confirm CloudFront distribution
         run: aws cloudfront get-distribution --id "${CLOUDFRONT_DIST_ID}"
