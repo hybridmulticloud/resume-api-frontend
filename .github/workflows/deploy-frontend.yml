@@ -60,17 +60,18 @@ jobs:
             fi
           done
 
-      - name: Parse & export clean values
-        run: |
-          API_URL=$(sed -e "/\[command\]/d" -e "/::debug/d" infra-artifacts/api_gateway_url.txt | head -n1)
-          FRONTEND_BUCKET_NAME=$(sed -e "/\[command\]/d" -e "/::debug/d" infra-artifacts/frontend_bucket_name.txt | head -n1)
-          CLOUDFRONT_DIST_ID=$(sed -e "/\[command\]/d" -e "/::debug/d" infra-artifacts/cloudfront_distribution_id.txt | head -n1)
+        - name: Parse & export clean values
+          run: |
+          # Drop any lines starting with "/" or containing "::debug::"
+          API_URL=$(grep -vE '^/|::debug::' infra-artifacts/api_gateway_url.txt | head -n1)
+          FRONTEND_BUCKET_NAME=$(grep -vE '^/|::debug::' infra-artifacts/frontend_bucket_name.txt | head -n1)
+          CLOUDFRONT_DIST_ID=$(grep -vE '^/|::debug::' infra-artifacts/cloudfront_distribution_id.txt | head -n1)
 
           if [[ -z "$API_URL" || -z "$FRONTEND_BUCKET_NAME" || -z "$CLOUDFRONT_DIST_ID" ]]; then
-            echo "❌ Failed to parse values. Raw contents:" >&2
-            sed -n '1,5p' infra-artifacts/api_gateway_url.txt     >&2
-            sed -n '1,5p' infra-artifacts/frontend_bucket_name.txt >&2
-            sed -n '1,5p' infra-artifacts/cloudfront_distribution_id.txt >&2
+            echo "❌ Parsing failed. Raw files:" >&2
+            cat infra-artifacts/api_gateway_url.txt     >&2
+            cat infra-artifacts/frontend_bucket_name.txt >&2
+            cat infra-artifacts/cloudfront_distribution_id.txt >&2
             exit 1
           fi
 
