@@ -38,8 +38,7 @@ jobs:
 
       - name: Download infra-outputs artifact
         run: |
-          gh run download \
-            $RUN_ID \
+          gh run download $RUN_ID \
             --repo hybridmulticloud/resume-api-backend \
             --name infra-outputs \
             --dir infra-artifacts
@@ -48,10 +47,7 @@ jobs:
         run: |
           BUCKET=$(< infra-artifacts/frontend_bucket_name.txt)
           DIST_ID=$(< infra-artifacts/cloudfront_distribution_id.txt)
-          cat <<EOF >> $GITHUB_ENV
-API_URL=https://${BUCKET}/UpdateVisitorCount
-CLOUDFRONT_ID=${DIST_ID}
-EOF
+          printf "API_URL=https://${BUCKET}/UpdateVisitorCount\nCLOUDFRONT_ID=${DIST_ID}\n" >> $GITHUB_ENV
 
       - name: Build index.html
         run: envsubst < public/index.tmpl.html > public/index.html
