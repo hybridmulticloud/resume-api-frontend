@@ -30,6 +30,8 @@ jobs:
 
       - name: Get Backend Run ID
         id: get_run
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           echo "🔍 Fetching latest backend run..."
           RUN_ID=$(gh run list \
@@ -39,14 +41,14 @@ jobs:
             --limit 1 \
             --json databaseId \
             --jq '.[0].databaseId')
-          echo "→ Using backend run ID: $RUN_ID"
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
       - name: Download infra-outputs artifact
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
-          echo "⬇️ Downloading infra-outputs from run $RUN_ID"
-          gh run download \
-            "$RUN_ID" \
+          echo "⬇️  Downloading infra-outputs from run $RUN_ID"
+          gh run download "$RUN_ID" \
             --repo hybridmulticloud/resume-api-backend \
             --name infra-outputs \
             --dir infra-artifacts
@@ -62,7 +64,6 @@ jobs:
 
       - name: Parse & export clean values
         run: |
-          # Remove any runner “[command]” lines or Terraform debug suffixes
           raw_api=$(grep -vE '^
 
 \[command\]
@@ -98,13 +99,12 @@ jobs:
           echo "✅ Parsed FRONTEND_BUCKET_NAME = $FRONTEND_BUCKET_NAME"
           echo "✅ Parsed CLOUDFRONT_DIST_ID   = $CLOUDFRONT_DIST_ID"
 
-          echo "API_URL=$API_URL"                       >> $GITHUB_ENV
+          echo "API_URL=$API_URL"                        >> $GITHUB_ENV
           echo "FRONTEND_BUCKET_NAME=$FRONTEND_BUCKET_NAME" >> $GITHUB_ENV
           echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"     >> $GITHUB_ENV
 
       - name: Build index.html
         run: |
-          echo "🔧 Building index.html with API_URL=$API_URL"
           envsubst '$API_URL' < public/index.tmpl.html > public/index.html
 
       - name: Configure AWS credentials
@@ -116,7 +116,6 @@ jobs:
 
       - name: Sync site to S3
         run: |
-          echo "📤 Syncing to s3://${FRONTEND_BUCKET_NAME}"
           aws s3 sync public/ "s3://${FRONTEND_BUCKET_NAME}" \
             --delete \
             --cache-control "index.html=max-age=0,no-cache,no-store" \
@@ -124,13 +123,10 @@ jobs:
             --cache-control "*.js=max-age=86400"
 
       - name: Confirm CloudFront distribution
-        run: |
-          echo "🔍 Verifying distribution $CLOUDFRONT_DIST_ID"
-          aws cloudfront get-distribution --id "$CLOUDFRONT_DIST_ID"
+        run: aws cloudfront get-distribution --id "${CLOUDFRONT_DIST_ID}"
 
       - name: Invalidate CloudFront cache
         run: |
-          echo "🚀 Invalidating distribution $CLOUDFRONT_DIST_ID"
           aws cloudfront create-invalidation \
-            --distribution-id "$CLOUDFRONT_DIST_ID" \
+            --distribution-id "${CLOUDFRONT_DIST_ID}" \
             --paths "/index.html" "/*.css" "/*.js"
