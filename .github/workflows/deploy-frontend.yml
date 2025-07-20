@@ -36,7 +36,7 @@ jobs:
           echo "🔍 Fetching latest backend run..."
           RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
-            --workflow 'Deploy Backend Infrastructure' \
+            --workflow "Deploy Backend Infrastructure" \
             --branch main \
             --limit 1 \
             --json databaseId \
@@ -48,7 +48,8 @@ jobs:
           GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
           echo "⬇️  Downloading infra-outputs from run $RUN_ID"
-          gh run download "$RUN_ID" \
+          gh run download \
+            "$RUN_ID" \
             --repo hybridmulticloud/resume-api-backend \
             --name infra-outputs \
             --dir infra-artifacts
@@ -95,7 +96,7 @@ jobs:
             exit 1
           fi
 
-          echo "✅ Parsed API_URL             = $API_URL"
+          echo "✅ Parsed API_URL              = $API_URL"
           echo "✅ Parsed FRONTEND_BUCKET_NAME = $FRONTEND_BUCKET_NAME"
           echo "✅ Parsed CLOUDFRONT_DIST_ID   = $CLOUDFRONT_DIST_ID"
 
