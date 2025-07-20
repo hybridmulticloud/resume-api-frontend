@@ -20,7 +20,7 @@ jobs:
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
-      - name: Checkout
+      - name: Checkout code
         uses: actions/checkout@v3
 
       - name: Install GitHub CLI
@@ -30,9 +30,8 @@ jobs:
 
       - name: Get Backend Run ID
         id: get_run
-        env:
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
+          echo "🔍 Fetching latest backend run..."
           RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
             --workflow 'Deploy Backend Infrastructure' \
@@ -40,12 +39,12 @@ jobs:
             --limit 1 \
             --json databaseId \
             --jq '.[0].databaseId')
+          echo "→ Using backend run ID: $RUN_ID"
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
       - name: Download infra-outputs artifact
-        env:
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
         run: |
+          echo "⬇️ Downloading infra-outputs from run $RUN_ID"
           gh run download \
             "$RUN_ID" \
             --repo hybridmulticloud/resume-api-backend \
@@ -63,26 +62,49 @@ jobs:
 
       - name: Parse & export clean values
         run: |
-          # Strip anything after the first "::" (debug noise)
-          raw_api=$(head -n1 infra-artifacts/api_gateway_url.txt)
-          API_URL=$(echo "$raw_api" | sed 's/::.*//' | tr -d '\r\n')
+          # Remove any runner “[command]” lines or Terraform debug suffixes
+          raw_api=$(grep -vE '^
 
-          raw_bucket=$(head -n1 infra-artifacts/frontend_bucket_name.txt)
-          FRONTEND_BUCKET_NAME=$(echo "$raw_bucket" | sed 's/::.*//' | grep -Eo '^[A-Za-z0-9.-]+' | tr -d '\r\n')
+\[command\]
 
-          raw_dist=$(head -n1 infra-artifacts/cloudfront_distribution_id.txt)
-          CLOUDFRONT_DIST_ID=$(echo "$raw_dist" | sed 's/::.*//' | grep -Eo '^[A-Za-z0-9]+' | tr -d '\r\n')
+|::debug' infra-artifacts/api_gateway_url.txt)
+          raw_bucket=$(grep -vE '^
 
-          echo "✅ API_URL:           $API_URL"
-          echo "✅ FRONTEND_BUCKET:   $FRONTEND_BUCKET_NAME"
-          echo "✅ CLOUDFRONT_DIST_ID: $CLOUDFRONT_DIST_ID"
+\[command\]
 
-          echo "API_URL=$API_URL"                        >> $GITHUB_ENV
+|::debug' infra-artifacts/frontend_bucket_name.txt)
+          raw_dist=$(grep -vE '^
+
+\[command\]
+
+|::debug' infra-artifacts/cloudfront_distribution_id.txt)
+
+          API_URL=$(echo "$raw_api" | grep -Eo '^https?://[^ ]+' | head -n1)
+          FRONTEND_BUCKET_NAME=$(echo "$raw_bucket" | grep -Eo '^[A-Za-z0-9.-]+' | head -n1)
+          CLOUDFRONT_DIST_ID=$(echo "$raw_dist" | grep -Eo '^[A-Za-z0-9]+' | head -n1)
+
+          if [[ -z "$API_URL" || -z "$FRONTEND_BUCKET_NAME" || -z "$CLOUDFRONT_DIST_ID" ]]; then
+            echo "❌ Failed to parse one or more values:" >&2
+            echo "api_gateway_url.txt:" >&2
+            echo "$raw_api" | head -n3 >&2
+            echo "frontend_bucket_name.txt:" >&2
+            echo "$raw_bucket" | head -n3 >&2
+            echo "cloudfront_distribution_id.txt:" >&2
+            echo "$raw_dist" | head -n3 >&2
+            exit 1
+          fi
+
+          echo "✅ Parsed API_URL             = $API_URL"
+          echo "✅ Parsed FRONTEND_BUCKET_NAME = $FRONTEND_BUCKET_NAME"
+          echo "✅ Parsed CLOUDFRONT_DIST_ID   = $CLOUDFRONT_DIST_ID"
+
+          echo "API_URL=$API_URL"                       >> $GITHUB_ENV
           echo "FRONTEND_BUCKET_NAME=$FRONTEND_BUCKET_NAME" >> $GITHUB_ENV
-          echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"   >> $GITHUB_ENV
+          echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"     >> $GITHUB_ENV
 
       - name: Build index.html
         run: |
+          echo "🔧 Building index.html with API_URL=$API_URL"
           envsubst '$API_URL' < public/index.tmpl.html > public/index.html
 
       - name: Configure AWS credentials
@@ -94,17 +116,21 @@ jobs:
 
       - name: Sync site to S3
         run: |
-          aws s3 sync public/ s3://${FRONTEND_BUCKET_NAME} \
+          echo "📤 Syncing to s3://${FRONTEND_BUCKET_NAME}"
+          aws s3 sync public/ "s3://${FRONTEND_BUCKET_NAME}" \
             --delete \
             --cache-control "index.html=max-age=0,no-cache,no-store" \
             --cache-control "*.css=max-age=86400" \
             --cache-control "*.js=max-age=86400"
 
       - name: Confirm CloudFront distribution
-        run: aws cloudfront get-distribution --id $CLOUDFRONT_DIST_ID
+        run: |
+          echo "🔍 Verifying distribution $CLOUDFRONT_DIST_ID"
+          aws cloudfront get-distribution --id "$CLOUDFRONT_DIST_ID"
 
       - name: Invalidate CloudFront cache
         run: |
+          echo "🚀 Invalidating distribution $CLOUDFRONT_DIST_ID"
           aws cloudfront create-invalidation \
-            --distribution-id $CLOUDFRONT_DIST_ID \
+            --distribution-id "$CLOUDFRONT_DIST_ID" \
             --paths "/index.html" "/*.css" "/*.js"
