@@ -65,6 +65,7 @@ jobs:
 
       - name: Parse & export clean values
         run: |
+          # strip any runner “[command]” lines or Terraform debug noise
           raw_api=$(grep -vE '^
 
 \[command\]
@@ -86,12 +87,12 @@ jobs:
           CLOUDFRONT_DIST_ID=$(echo "$raw_dist" | grep -Eo '^[A-Za-z0-9]+' | head -n1)
 
           if [[ -z "$API_URL" || -z "$FRONTEND_BUCKET_NAME" || -z "$CLOUDFRONT_DIST_ID" ]]; then
-            echo "❌ Failed to parse one or more values:" >&2
-            echo "api_gateway_url.txt:" >&2
+            echo "❌ Failed to parse one or more values" >&2
+            echo "---- api_gateway_url.txt ----" >&2
             echo "$raw_api" | head -n3 >&2
-            echo "frontend_bucket_name.txt:" >&2
+            echo "---- frontend_bucket_name.txt ----" >&2
             echo "$raw_bucket" | head -n3 >&2
-            echo "cloudfront_distribution_id.txt:" >&2
+            echo "---- cloudfront_distribution_id.txt ----" >&2
             echo "$raw_dist" | head -n3 >&2
             exit 1
           fi
@@ -100,12 +101,13 @@ jobs:
           echo "✅ Parsed FRONTEND_BUCKET_NAME = $FRONTEND_BUCKET_NAME"
           echo "✅ Parsed CLOUDFRONT_DIST_ID   = $CLOUDFRONT_DIST_ID"
 
-          echo "API_URL=$API_URL"                        >> $GITHUB_ENV
+          echo "API_URL=$API_URL"                          >> $GITHUB_ENV
           echo "FRONTEND_BUCKET_NAME=$FRONTEND_BUCKET_NAME" >> $GITHUB_ENV
           echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"     >> $GITHUB_ENV
 
       - name: Build index.html
         run: |
+          echo "🔧 Building index.html with API_URL=$API_URL"
           envsubst '$API_URL' < public/index.tmpl.html > public/index.html
 
       - name: Configure AWS credentials
@@ -117,6 +119,7 @@ jobs:
 
       - name: Sync site to S3
         run: |
+          echo "📤 Syncing to s3://${FRONTEND_BUCKET_NAME}"
           aws s3 sync public/ "s3://${FRONTEND_BUCKET_NAME}" \
             --delete \
             --cache-control "index.html=max-age=0,no-cache,no-store" \
@@ -128,6 +131,7 @@ jobs:
 
       - name: Invalidate CloudFront cache
         run: |
+          echo "🚀 Invalidating distribution $CLOUDFRONT_DIST_ID"
           aws cloudfront create-invalidation \
             --distribution-id "${CLOUDFRONT_DIST_ID}" \
             --paths "/index.html" "/*.css" "/*.js"
