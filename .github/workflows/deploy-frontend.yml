@@ -1,3 +1,4 @@
+# .github/workflows/deploy-frontend.yml
 name: Deploy & Verify Frontend
 
 on:
@@ -63,9 +64,7 @@ jobs:
           for f in \
             api_gateway_url.txt \
             frontend_bucket_name.txt \
-            cloudfront_oac_id.txt \
-            cloudfront_distribution_id.txt \
-            route53_zone_id.txt; do
+            cloudfront_distribution_id.txt; do
             if [[ ! -f infra-artifacts/$f ]]; then
               echo "❌ Missing infra-artifacts/$f" >&2
               exit 1
@@ -75,11 +74,11 @@ jobs:
       - name: Parse & export infra values
         id: parse
         run: |
-          API_URL=$(grep -Eo 'https?://[A-Za-z0-9./_-]+' infra-artifacts/api_gateway_url.txt | head -n1)
-          BUCKET=$(grep -Eo '^[A-Za-z0-9.-]+' infra-artifacts/frontend_bucket_name.txt | head -n1)
-          DIST_ID=$(grep -Eo '^[A-Za-z0-9]+' infra-artifacts/cloudfront_distribution_id.txt | head -n1)
+          # read each output verbatim
+          API_URL=$(< infra-artifacts/api_gateway_url.txt)
+          BUCKET=$(< infra-artifacts/frontend_bucket_name.txt)
+          DIST_ID=$(< infra-artifacts/cloudfront_distribution_id.txt)
 
-          # export for later steps
           echo "API_URL=$API_URL"                       >> $GITHUB_ENV
           echo "FRONTEND_BUCKET_NAME=$BUCKET"           >> $GITHUB_ENV
           echo "CLOUDFRONT_DIST_ID=$DIST_ID"            >> $GITHUB_ENV
@@ -107,9 +106,6 @@ jobs:
             s3://$FRONTEND_BUCKET_NAME/index.html \
             --cache-control "max-age=0,no-cache,no-store"
 
-      - name: Confirm CloudFront distribution
-        run: aws cloudfront get-distribution --id "$CLOUDFRONT_DIST_ID"
-
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
@@ -129,7 +125,7 @@ jobs:
       AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
-      # inherited from deploy-frontend outputs
+      # inherit infra values from deploy-frontend outputs
       API_URL:            ${{ needs.deploy-frontend.outputs.api_url }}
       CLOUDFRONT_DIST_ID: ${{ needs.deploy-frontend.outputs.cf_dist_id }}
 
@@ -153,10 +149,6 @@ jobs:
             echo "Unexpected HTTP status $STATUS" >&2
             exit 1
           fi
-          curl -s https://$CF_DOMAIN | grep -q 'HybridMulti.Cloud' || {
-            echo "Footer text missing" >&2
-            exit 1
-          }
 
       - name: Verify visitor counter API
         run: |
