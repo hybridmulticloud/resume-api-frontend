@@ -95,15 +95,19 @@ jobs:
     needs: deploy-frontend
     runs-on: ubuntu-latest
 
+    env:
+      # ← Add your token here so gh can authenticate
+      GH_TOKEN:              ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+      AWS_REGION:            ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
     steps:
-      - name: Install GH CLI, jq & curl
-        run: |
-          sudo apt-get update -y
-          sudo apt-get install -y gh jq curl
+      - name: Install CLI tools
+        run: sudo apt-get update -y && sudo apt-get install -y gh jq curl
 
       - name: Get latest successful backend run ID
-        env:
-          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        id: get_run
         run: |
           RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
@@ -130,18 +134,15 @@ jobs:
         run: |
           DOMAIN=$(aws cloudfront get-distribution \
             --id "${{ needs.deploy-frontend.outputs.cf_dist_id }}" \
-            --query 'Distribution.DomainName' \
-            --output text)
+            --query 'Distribution.DomainName' --output text)
           echo "CF_DOMAIN=$DOMAIN" >> $GITHUB_ENV
 
       - name: Verify homepage loads
         run: |
-          curl -s -o /dev/null -w "%{http_code}" https://$CF_DOMAIN \
-            | grep -q '^200$'
+          curl -s -o /dev/null -w "%{http_code}" https://$CF_DOMAIN | grep -q '^200$'
 
-      - name: Verify visitor counter API  
+      - name: Verify visitor counter API
         run: |
           COUNT=$(curl -s -X POST "$API_URL/UpdateVisitorCount" \
-            -H "Content-Type: application/json" \
-            -d '{}' | jq '.visits')
+            -H "Content-Type: application/json" -d '{}' | jq '.visits')
           [[ "$COUNT" =~ ^[0-9]+$ ]]
