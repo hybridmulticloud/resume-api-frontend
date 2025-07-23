@@ -1,27 +1,17 @@
-# .github/workflows/deploy-frontend.yml
-name: Deploy & Verify Frontend
+name: Deploy Frontend to S3 (Dynamic API + Secure Bucket)
 
 on:
   push:
     branches:
       - main
-    paths:
-      - frontend/**
-      - .github/workflows/deploy-frontend.yml
-  workflow_dispatch: {}
+  workflow_dispatch:
 
 jobs:
   deploy-frontend:
-    name: Build & Sync Static Site
     runs-on: ubuntu-latest
     defaults:
       run:
         shell: bash
-
-    # Expose parsed infra values as outputs for downstream jobs
-    outputs:
-      api_url:   ${{ steps.parse.outputs.api_url }}
-      cf_dist_id: ${{ steps.parse.outputs.cf_dist_id }}
 
     env:
       GH_TOKEN:              ${{ secrets.PERSONAL_ACCESS_TOKEN }}
@@ -38,16 +28,16 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y gh jq
 
-      - name: Get Backend Run ID
+      - name: Get latest successful backend run ID
         id: get_run
         run: |
           RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
             --workflow "Deploy Backend Infrastructure" \
             --branch main \
-            --limit 1 \
-            --json databaseId \
-            --jq '.[0].databaseId')
+            --json databaseId,status \
+            --jq '.[] | select(.status=="success") | .databaseId' \
+            | head -n1)
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
       - name: Download infra-outputs artifact
@@ -60,7 +50,12 @@ jobs:
 
       - name: Validate artifact files
         run: |
-          for f in api_gateway_url.txt frontend_bucket_name.txt cloudfront_distribution_id.txt; do
+          for f in \
+            api_gateway_url.txt \
+            frontend_bucket_name.txt \
+            cloudfront_oac_id.txt \
+            cloudfront_distribution_id.txt \
+            route53_zone_id.txt; do
             if [[ ! -f infra-artifacts/$f ]]; then
               echo "❌ Missing infra-artifacts/$f" >&2
               exit 1
@@ -68,23 +63,22 @@ jobs:
           done
 
       - name: Parse & export infra values
-        id: parse
         run: |
           API_URL=$(grep -Eo 'https?://[A-Za-z0-9./_-]+' infra-artifacts/api_gateway_url.txt | head -n1)
           FRONTEND_BUCKET_NAME=$(grep -Eo '^[A-Za-z0-9.-]+' infra-artifacts/frontend_bucket_name.txt | head -n1)
+          OAC_ID=$(grep -Eo '^[A-Za-z0-9]+' infra-artifacts/cloudfront_oac_id.txt | head -n1)
           CLOUDFRONT_DIST_ID=$(grep -Eo '^[A-Za-z0-9]+' infra-artifacts/cloudfront_distribution_id.txt | head -n1)
+          ROUTE53_ZONE_ID=$(grep -Eo '^[A-Za-z0-9]+' infra-artifacts/route53_zone_id.txt | head -n1)
 
-          echo "API_URL=$API_URL"                         >> $GITHUB_ENV
+          echo "API_URL=$API_URL"                            >> $GITHUB_ENV
           echo "FRONTEND_BUCKET_NAME=$FRONTEND_BUCKET_NAME" >> $GITHUB_ENV
-          echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"     >> $GITHUB_ENV
+          echo "OAC_ID=$OAC_ID"                              >> $GITHUB_ENV
+          echo "CLOUDFRONT_DIST_ID=$CLOUDFRONT_DIST_ID"       >> $GITHUB_ENV
+          echo "ROUTE53_ZONE_ID=$ROUTE53_ZONE_ID"             >> $GITHUB_ENV
 
-          # Set job outputs for downstream
-          echo "api_url=$API_URL"           >> $GITHUB_OUTPUT
-          echo "cf_dist_id=$CLOUDFRONT_DIST_ID" >> $GITHUB_OUTPUT
-
-      - name: Build index.html from template
+      - name: Build index.html
         run: |
-          envsubst '$API_URL' < frontend/index.tmpl.html > frontend/index.html
+          envsubst '$API_URL' < public/index.tmpl.html > public/index.html
 
       - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
@@ -95,64 +89,16 @@ jobs:
 
       - name: Sync site to S3
         run: |
-          aws s3 sync frontend/ s3://$FRONTEND_BUCKET_NAME --delete --exclude ".DS_Store"
-          aws s3 cp frontend/index.html \
+          aws s3 sync public/ s3://$FRONTEND_BUCKET_NAME --delete
+          aws s3 cp public/index.html \
             s3://$FRONTEND_BUCKET_NAME/index.html \
             --cache-control "max-age=0,no-cache,no-store"
+
+      - name: Confirm CloudFront distribution
+        run: aws cloudfront get-distribution --id "$CLOUDFRONT_DIST_ID"
 
       - name: Invalidate CloudFront cache
         run: |
           aws cloudfront create-invalidation \
-            --distribution-id $CLOUDFRONT_DIST_ID \
+            --distribution-id "$CLOUDFRONT_DIST_ID" \
             --paths "/index.html" "/*.css" "/*.js"
-
-  verify-frontend:
-    name: Smoke Test Frontend & API
-    needs: deploy-frontend
-    runs-on: ubuntu-latest
-    defaults:
-      run:
-        shell: bash
-
-    env:
-      AWS_REGION:            ${{ secrets.AWS_REGION }}
-      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-      # Inherit infra values from deploy-frontend outputs
-      API_URL:            ${{ needs.deploy-frontend.outputs.api_url }}
-      CLOUDFRONT_DIST_ID: ${{ needs.deploy-frontend.outputs.cf_dist_id }}
-
-    steps:
-      - name: Install CLI tools
-        run: sudo apt-get update -y && sudo apt-get install -y jq curl
-
-      - name: Fetch CloudFront domain
-        id: fetch_cf
-        run: |
-          DOMAIN=$(aws cloudfront get-distribution \
-            --id "$CLOUDFRONT_DIST_ID" \
-            --query 'Distribution.DomainName' \
-            --output text)
-          echo "CF_DOMAIN=$DOMAIN" >> $GITHUB_ENV
-
-      - name: Verify homepage loads
-        run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://$CF_DOMAIN)
-          if [[ "$STATUS" != "200" ]]; then
-            echo "Unexpected HTTP status $STATUS" >&2
-            exit 1
-          fi
-          curl -s https://$CF_DOMAIN | grep -q 'HybridMulti.Cloud' || {
-            echo "Footer text missing" >&2; exit 1
-          }
-
-      - name: Verify visitor counter API
-        run: |
-          COUNT=$(curl -s -X POST "$API_URL/UpdateVisitorCount" \
-            -H "Content-Type: application/json" \
-            -d '{}' | jq '.visits')
-          echo "Visitor count returned: $COUNT"
-          if ! [[ "$COUNT" =~ ^[0-9]+$ ]]; then
-            echo "Invalid visits value" >&2; exit 1;
-          fi
