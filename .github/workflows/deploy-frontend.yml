@@ -94,39 +94,54 @@ jobs:
     name: Smoke Test Frontend & API
     needs: deploy-frontend
     runs-on: ubuntu-latest
-    env:
-      AWS_REGION:            ${{ secrets.AWS_REGION }}
-      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-
-      # grab the URL you emitted in deploy-frontend
-      API_URL:               ${{ needs.deploy-frontend.outputs.api_url }}
-      CLOUDFRONT_DIST_ID:    ${{ needs.deploy-frontend.outputs.cf_dist_id }}
 
     steps:
-      - name: Install CLI tools
+      - name: Install GH CLI, jq & curl
         run: |
           sudo apt-get update -y
-          sudo apt-get install -y jq curl
+          sudo apt-get install -y gh jq curl
 
-      - name: Resolve CloudFront domain
-        id: fetch_cf
+      - name: Get latest successful backend run ID
+        env:
+          GH_TOKEN: ${{ secrets.PERSONAL_ACCESS_TOKEN }}
+        run: |
+          RUN_ID=$(gh run list \
+            --repo hybridmulticloud/resume-api-backend \
+            --workflow "Deploy Backend Infrastructure" \
+            --branch main \
+            --json databaseId,status \
+            --jq '.[] | select(.status=="success") | .databaseId' \
+            | head -n1)
+          echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
+
+      - name: Download infra-outputs artifact
+        run: |
+          gh run download "$RUN_ID" \
+            --repo hybridmulticloud/resume-api-backend \
+            --name infra-outputs \
+            --dir infra-artifacts
+
+      - name: Parse API URL
+        run: |
+          API_URL=$(grep -Eo 'https?://[A-Za-z0-9./_-]+' infra-artifacts/api_gateway_url.txt | head -n1)
+          echo "API_URL=$API_URL" >> $GITHUB_ENV
+
+      - name: Fetch CloudFront domain
         run: |
           DOMAIN=$(aws cloudfront get-distribution \
-            --id "$CLOUDFRONT_DIST_ID" \
+            --id "${{ needs.deploy-frontend.outputs.cf_dist_id }}" \
             --query 'Distribution.DomainName' \
             --output text)
           echo "CF_DOMAIN=$DOMAIN" >> $GITHUB_ENV
 
       - name: Verify homepage loads
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$CF_DOMAIN")
-          [[ "$STATUS" == "200" ]]
+          curl -s -o /dev/null -w "%{http_code}" https://$CF_DOMAIN \
+            | grep -q '^200$'
 
-      - name: Verify visitor counter API
+      - name: Verify visitor counter API  
         run: |
           COUNT=$(curl -s -X POST "$API_URL/UpdateVisitorCount" \
             -H "Content-Type: application/json" \
             -d '{}' | jq '.visits')
-          echo "Visitor count returned: $COUNT"
           [[ "$COUNT" =~ ^[0-9]+$ ]]
