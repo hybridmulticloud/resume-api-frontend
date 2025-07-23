@@ -143,6 +143,11 @@ jobs:
 
       - name: Verify visitor counter API
         run: |
-          COUNT=$(curl -s -X POST "$API_URL/UpdateVisitorCount" \
-            -H "Content-Type: application/json" -d '{}' | jq '.visits')
-          [[ "$COUNT" =~ ^[0-9]+$ ]]
+          COUNT=$(curl -s -X POST "$API_URL" \
+            -H "Content-Type: application/json" \
+            -d '{}' | jq -r '.visits // empty')
+          echo "Visitor count returned: $COUNT"
+          if ! [[ "$COUNT" =~ ^[0-9]+$ ]]; then
+            echo "Invalid visits value: $COUNT" >&2
+            exit 1
+          fi
