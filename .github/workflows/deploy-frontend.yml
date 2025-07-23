@@ -94,11 +94,12 @@ jobs:
     name: Smoke Test Frontend & API
     needs: deploy-frontend
     runs-on: ubuntu-latest
-
     env:
       AWS_REGION:            ${{ secrets.AWS_REGION }}
       AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+
+      # grab the URL you emitted in deploy-frontend
       API_URL:               ${{ needs.deploy-frontend.outputs.api_url }}
       CLOUDFRONT_DIST_ID:    ${{ needs.deploy-frontend.outputs.cf_dist_id }}
 
@@ -108,7 +109,7 @@ jobs:
           sudo apt-get update -y
           sudo apt-get install -y jq curl
 
-      - name: Fetch CloudFront domain
+      - name: Resolve CloudFront domain
         id: fetch_cf
         run: |
           DOMAIN=$(aws cloudfront get-distribution \
@@ -119,7 +120,7 @@ jobs:
 
       - name: Verify homepage loads
         run: |
-          STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://$CF_DOMAIN)
+          STATUS=$(curl -s -o /dev/null -w "%{http_code}" "https://$CF_DOMAIN")
           [[ "$STATUS" == "200" ]]
 
       - name: Verify visitor counter API
@@ -127,4 +128,5 @@ jobs:
           COUNT=$(curl -s -X POST "$API_URL/UpdateVisitorCount" \
             -H "Content-Type: application/json" \
             -d '{}' | jq '.visits')
+          echo "Visitor count returned: $COUNT"
           [[ "$COUNT" =~ ^[0-9]+$ ]]
