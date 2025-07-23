@@ -11,11 +11,18 @@ on:
 
 jobs:
   deploy-frontend:
+    name: Build & Sync Static Site
     runs-on: ubuntu-latest
     outputs:
       api_url:     ${{ steps.parse.outputs.api_url }}
       bucket_name: ${{ steps.parse.outputs.bucket_name }}
       cf_dist_id:  ${{ steps.parse.outputs.cf_dist_id }}
+
+    env:
+      GITHUB_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
+      AWS_REGION:            ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
 
     steps:
       - uses: actions/checkout@v3
@@ -26,7 +33,6 @@ jobs:
           sudo apt-get install -y gh jq
 
       - id: get_run
-        name: Get Backend Run ID
         run: |
           RUN_ID=$(gh run list \
             --repo hybridmulticloud/resume-api-backend \
@@ -37,21 +43,18 @@ jobs:
             | head -n1)
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
-      - name: Download infra-outputs
-        run: |
+      - run: |
           gh run download "$RUN_ID" \
             --repo hybridmulticloud/resume-api-backend \
             --name infra-outputs \
             --dir infra-artifacts
 
-      - name: Validate artifacts
-        run: |
+      - run: |
           for f in api_gateway_url.txt frontend_bucket_name.txt cloudfront_distribution_id.txt; do
-            [[ -f infra-artifacts/$f ]] || { echo "Missing $f"; exit 1; }
+            [[ -f infra-artifacts/$f ]] || exit 1
           done
 
       - id: parse
-        name: Parse & export infra values
         run: |
           API_URL=$(grep -Eo 'https?://[A-Za-z0-9./_-]+' infra-artifacts/api_gateway_url.txt | head -n1)
           BUCKET=$(grep -Eo '^[A-Za-z0-9.-]+' infra-artifacts/frontend_bucket_name.txt | head -n1)
@@ -68,14 +71,14 @@ jobs:
       - name: Build index.html
         run: envsubst '$API_URL' < public/index.tmpl.html > public/index.html
 
-      - name: Configure AWS credentials
+      - name: Configure AWS Credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
-          aws-region:            ${{ secrets.AWS_REGION }}
-          aws-access-key-id:     ${{ secrets.AWS_ACCESS_KEY_ID }}
-          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region:            ${{ env.AWS_REGION }}
+          aws-access-key-id:     ${{ env.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Sync site to S3
+      - name: Sync to S3
         run: |
           aws s3 sync public/ s3://$FRONTEND_BUCKET_NAME --delete --exclude ".DS_Store"
           aws s3 cp public/index.html \
@@ -89,30 +92,34 @@ jobs:
             --paths "/index.html" "/*.css" "/*.js"
 
   verify-frontend:
+    name: Smoke Test Frontend & API
     needs: deploy-frontend
     runs-on: ubuntu-latest
 
+    env:
+      AWS_REGION:            ${{ secrets.AWS_REGION }}
+      AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
+      AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+      API_URL:               ${{ needs.deploy-frontend.outputs.api_url }}
+      CLOUDFRONT_DIST_ID:    ${{ needs.deploy-frontend.outputs.cf_dist_id }}
+
     steps:
-      - name: Install CLI tools
-        run: sudo apt-get update -y && sudo apt-get install -y jq curl
+      - run: sudo apt-get update -y && sudo apt-get install -y jq curl
 
       - id: fetch_cf
-        name: Fetch CloudFront Domain
         run: |
           DOMAIN=$(aws cloudfront get-distribution \
-            --id "${{ needs.deploy-frontend.outputs.cf_dist_id }}" \
+            --id "$CLOUDFRONT_DIST_ID" \
             --query 'Distribution.DomainName' \
             --output text)
           echo "CF_DOMAIN=$DOMAIN" >> $GITHUB_ENV
 
-      - name: Verify homepage loads
-        run: |
+      - run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://$CF_DOMAIN)
           [[ "$STATUS" == "200" ]]
 
-      - name: Verify visitor counter API
-        run: |
-          COUNT=$(curl -s -X POST "${{ needs.deploy-frontend.outputs.api_url }}/UpdateVisitorCount" \
+      - run: |
+          COUNT=$(curl -s -X POST "$API_URL/UpdateVisitorCount" \
             -H "Content-Type: application/json" \
             -d '{}' | jq '.visits')
           [[ "$COUNT" =~ ^[0-9]+$ ]]
