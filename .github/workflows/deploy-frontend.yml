@@ -19,7 +19,7 @@ jobs:
       cf_dist_id:  ${{ steps.parse.outputs.cf_dist_id }}
 
     env:
-      GITHUB_TOKEN:          ${{ secrets.GITHUB_TOKEN }}
+      GH_TOKEN:              ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       AWS_REGION:            ${{ secrets.AWS_REGION }}
       AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -43,22 +43,24 @@ jobs:
             | head -n1)
           echo "RUN_ID=$RUN_ID" >> $GITHUB_ENV
 
-      - run: |
+      - name: Download infra-outputs
+        run: |
           gh run download "$RUN_ID" \
             --repo hybridmulticloud/resume-api-backend \
             --name infra-outputs \
             --dir infra-artifacts
 
-      - run: |
+      - name: Validate artifacts
+        run: |
           for f in api_gateway_url.txt frontend_bucket_name.txt cloudfront_distribution_id.txt; do
-            [[ -f infra-artifacts/$f ]] || exit 1
+            [[ -f infra-artifacts/$f ]] || { echo "Missing $f" >&2; exit 1; }
           done
 
       - id: parse
         run: |
           API_URL=$(grep -Eo 'https?://[A-Za-z0-9./_-]+' infra-artifacts/api_gateway_url.txt | head -n1)
-          BUCKET=$(grep -Eo '^[A-Za-z0-9.-]+' infra-artifacts/frontend_bucket_name.txt | head -n1)
-          DIST_ID=$(grep -Eo '^[A-Za-z0-9]+' infra-artifacts/cloudfront_distribution_id.txt | head -n1)
+          BUCKET=$(< infra-artifacts/frontend_bucket_name.txt)
+          DIST_ID=$(< infra-artifacts/cloudfront_distribution_id.txt)
 
           echo "API_URL=$API_URL"                       >> $GITHUB_ENV
           echo "FRONTEND_BUCKET_NAME=$BUCKET"           >> $GITHUB_ENV
@@ -71,14 +73,14 @@ jobs:
       - name: Build index.html
         run: envsubst '$API_URL' < public/index.tmpl.html > public/index.html
 
-      - name: Configure AWS Credentials
+      - name: Configure AWS credentials
         uses: aws-actions/configure-aws-credentials@v2
         with:
           aws-region:            ${{ env.AWS_REGION }}
           aws-access-key-id:     ${{ env.AWS_ACCESS_KEY_ID }}
           aws-secret-access-key: ${{ env.AWS_SECRET_ACCESS_KEY }}
 
-      - name: Sync to S3
+      - name: Sync site to S3
         run: |
           aws s3 sync public/ s3://$FRONTEND_BUCKET_NAME --delete --exclude ".DS_Store"
           aws s3 cp public/index.html \
@@ -100,13 +102,16 @@ jobs:
       AWS_REGION:            ${{ secrets.AWS_REGION }}
       AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
       AWS_SECRET_ACCESS_KEY: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
-      API_URL:               ${{ needs.deploy-frontend.outputs.api_url }}
-      CLOUDFRONT_DIST_ID:    ${{ needs.deploy-frontend.outputs.cf_dist_id }}
+
+      API_URL:            ${{ needs.deploy-frontend.outputs.api_url }}
+      CLOUDFRONT_DIST_ID: ${{ needs.deploy-frontend.outputs.cf_dist_id }}
 
     steps:
-      - run: sudo apt-get update -y && sudo apt-get install -y jq curl
+      - name: Install CLI tools
+        run: sudo apt-get update -y && sudo apt-get install -y jq curl
 
-      - id: fetch_cf
+      - name: Fetch CloudFront domain
+        id: fetch_cf
         run: |
           DOMAIN=$(aws cloudfront get-distribution \
             --id "$CLOUDFRONT_DIST_ID" \
@@ -114,11 +119,13 @@ jobs:
             --output text)
           echo "CF_DOMAIN=$DOMAIN" >> $GITHUB_ENV
 
-      - run: |
+      - name: Verify homepage loads
+        run: |
           STATUS=$(curl -s -o /dev/null -w "%{http_code}" https://$CF_DOMAIN)
           [[ "$STATUS" == "200" ]]
 
-      - run: |
+      - name: Verify visitor counter API
+        run: |
           COUNT=$(curl -s -X POST "$API_URL/UpdateVisitorCount" \
             -H "Content-Type: application/json" \
             -d '{}' | jq '.visits')
