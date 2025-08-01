@@ -19,7 +19,6 @@ This project aligns with the official Cloud Resume Challenge steps:
 4. CI/CD via GitHub Actions across frontend, backend, and monitoring  
 5. Observability with CloudWatch alarms and canary testing
 
-It’s built to go further than the challenge—automated, monitored, and enterprise-ready.
 ---
 
 ## 🧠 Key Technologies
