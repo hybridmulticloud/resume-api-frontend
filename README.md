@@ -9,6 +9,17 @@
 
 This project is a full-stack cloud-native resume viewer that exposes a serverless REST API to track profile views and hosts a static website frontend. It's built with AWS and managed using Infrastructure as Code (Terraform).
 
+## 📘 Inspired by the Cloud Resume Challenge
+
+This project aligns with the official Cloud Resume Challenge steps:
+
+1. Static resume delivered via S3 + CloudFront + custom DNS  
+2. Visitor counter implemented using API Gateway, Lambda, and DynamoDB  
+3. Infrastructure fully modeled with Terraform  
+4. CI/CD via GitHub Actions across frontend, backend, and monitoring  
+5. Observability with CloudWatch alarms and canary testing
+
+It’s built to go further than the challenge—automated, monitored, and enterprise-ready.
 ---
 
 ## 🧠 Key Technologies
