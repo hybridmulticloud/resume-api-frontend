@@ -228,7 +228,7 @@ flowchart LR
   subgraph AWS_Monitoring
     MD --> Canary["Synthetics Canary"]
     MD --> CW["CloudWatch"]
-    Canary --> CW
+    CW --> Canary
     CW --> APIGW
     CW --> Lambda
   end
