@@ -200,7 +200,7 @@ flowchart LR
   subgraph CI_CD
     GH --> TF["Infra Deploy: Backend + Frontend"]
     GH --> LD["Lambda Deploy"]
-    GH --> FD["Frontend Asset Upload + CF Invalidation"]
+    GH --> FD["Frontend Deploy"]
     GH --> MD["Monitoring Deploy"]
   end
 
@@ -219,8 +219,8 @@ flowchart LR
     TF --> S3["S3 Static Site"]
     TF --> CF["CloudFront CDN"]
     TF --> Route53["Route 53 DNS"]
-    FD --> S3
-    FD --> CF
+    FD -- asset upload --> S3
+    FD -- invalidation --> CF
     CF --> S3
     CF --> APIGW
     Route53 --> CF
@@ -230,9 +230,9 @@ flowchart LR
   subgraph AWS_Monitoring
     MD --> Canary["Synthetics Canary"]
     MD --> CW["CloudWatch"]
-    Canary --> CW
-    Lambda --> CW
-    APIGW --> CW
+    CW --> Canary
+    CW --> Lambda 
+    CW --> APIGW 
   end
 ```
 
