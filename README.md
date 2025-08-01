@@ -213,7 +213,6 @@ flowchart LR
     ArtifactS3 -- used by --> Lambda
     APIGW --> Lambda
     Lambda --> DynamoDB
-    Lambda --> CW["CloudWatch Logs"]
   end
 
   subgraph AWS_Frontend
@@ -230,10 +229,10 @@ flowchart LR
 
   subgraph AWS_Monitoring
     MD --> Canary["Synthetics Canary"]
-    MD --> CW
-    CW --> Canary
-    CW --> APIGW
-    CW --> Lambda
+    MD --> CW["CloudWatch"]
+    Canary --> CW
+    Lambda --> CW
+    APIGW --> CW
   end
 ```
 
