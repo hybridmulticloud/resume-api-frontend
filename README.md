@@ -208,8 +208,12 @@ flowchart LR
     TF --> APIGW["API Gateway"]
     TF --> Lambda["Lambda Function"]
     TF --> DynamoDB["DynamoDB"]
+    TF --> ArtifactS3["S3 (Lambda Artifact)"]
+    LD --> ArtifactS3
+    ArtifactS3 -- used by --> Lambda
     APIGW --> Lambda
     Lambda --> DynamoDB
+    Lambda --> CW["CloudWatch Logs"]
   end
 
   subgraph AWS_Frontend
@@ -220,14 +224,13 @@ flowchart LR
     FD --> CF
     CF --> S3
     CF --> APIGW
-    CF --> Route53
-    Route53 --> User["Users"]
+    Route53 --> CF
     User --> CF
   end
 
   subgraph AWS_Monitoring
     MD --> Canary["Synthetics Canary"]
-    MD --> CW["CloudWatch"]
+    MD --> CW
     CW --> Canary
     CW --> APIGW
     CW --> Lambda
