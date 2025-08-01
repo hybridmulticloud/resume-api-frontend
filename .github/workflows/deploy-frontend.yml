@@ -96,7 +96,6 @@ jobs:
     runs-on: ubuntu-latest
 
     env:
-      # ← Add your token here so gh can authenticate
       GH_TOKEN:              ${{ secrets.PERSONAL_ACCESS_TOKEN }}
       AWS_REGION:            ${{ secrets.AWS_REGION }}
       AWS_ACCESS_KEY_ID:     ${{ secrets.AWS_ACCESS_KEY_ID }}
