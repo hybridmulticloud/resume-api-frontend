@@ -34,6 +34,11 @@ jobs:
       - id: get_run
         name: Get last successful backend infra run id
         run: |
-          RUN_ID=$(gh run list \
-            --repo hybridmulticloud/resume-api-backend \
-            --workflow 'Deploy
+          set -euo pipefail
+
+          RUN_ID="$(
+            gh run list \
+              --repo "hybridmulticloud/resume-api-backend" \
+              --workflow "Deploy Backend Infrastructure" \
+              --branch "main" \
+              --json
