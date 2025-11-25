@@ -34,13 +34,7 @@ jobs:
       - id: get_run
         name: Get last successful backend infra run id
         run: |
-          RUN_ID=$(gh run list \
-            --repo "hybridmulticloud/resume-api-backend" \
-            --workflow "Deploy Backend Infrastructure" \
-            --branch "main" \
-            --json databaseId,conclusion \
-            --jq '.[] | select(.conclusion=="success") | .databaseId' \
-            | head -n 1)
+          RUN_ID=$(gh run list --repo hybridmulticloud/resume-api-backend --workflow "Deploy Backend Infrastructure" --branch main --json databaseId,conclusion --jq '.[] | select(.conclusion=="success") | .databaseId' | head -n 1)
 
           if [ -z "$RUN_ID" ]; then
-            echo "No successful Deploy Backend Infrastructure runs found on main." >&
+            echo
